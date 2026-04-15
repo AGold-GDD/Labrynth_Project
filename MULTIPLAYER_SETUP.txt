@@ -1,244 +1,604 @@
 ================================================================================
   LABRYNTH PROJECT — ONLINE MULTIPLAYER SETUP GUIDE
   3 Players: 2 Survivors + 1 Monster Controller
+  Engine: Unreal Engine 5.6  |  Blueprint-only project
 ================================================================================
 
+  PATH NOTE:
+  All game content lives in the Content/ folder on disk.
+  Inside Unreal Editor's Content Browser, that folder shows as "/Game/".
+  This guide uses both:
+    - Content/...  when telling you where to find/save a file on disk
+    - /Game/...    when a config file or node needs an asset reference path
+  They refer to the same location.
 
-CONFIG CHANGES (already done — these files have been updated)
----------------------------------------------------------------
+================================================================================
+  PART 1 — CONFIG FILES  (already done — committed to repo)
+================================================================================
 
-  DefaultEngine.ini:
-    - Online Subsystem NULL enabled (LAN / direct-IP play)
-    - Network bandwidth tuned
-    - Splitscreen turned OFF
-    - Lobby map set as default startup map
-    - GlobalDefaultServerGameMode set
+  Config/DefaultEngine.ini  — changes made:
+    - Online Subsystem NULL enabled  (LAN / direct-IP multiplayer)
+    - bUseSplitscreen set to False   (no more splitscreen)
+    - Default startup map changed to the new Lobby level
+    - GlobalDefaultServerGameMode now set (was None before)
+    - Network bandwidth settings added
 
-  DefaultGame.ini:
-    - MaxPlayers = 3
+  Config/DefaultGame.ini  — changes made:
+    - MaxPlayers = 3  (2 survivors + 1 monster)
 
   To upgrade from LAN to internet later:
-    - Swap DefaultPlatformService=NULL  to  =Steam  (Steamworks)
-    - Or swap to =EOS  (Epic Online Services — free)
+    In DefaultEngine.ini, change:
+      DefaultPlatformService=NULL
+    to:
+      DefaultPlatformService=Steam    (requires Steamworks SDK)
+      or
+      DefaultPlatformService=EOS      (Epic Online Services — free tier)
 
 
 ================================================================================
-  BLUEPRINT STEPS (done inside Unreal Editor)
+  PART 2 — BLUEPRINTS & LEVELS  (you do this in Unreal Editor)
 ================================================================================
 
+  FILES YOU WILL CREATE OR MODIFY:
+  ─────────────────────────────────────────────────────────────────────────────
+  CREATE (new):
+    Content/ThirdPerson/Maps/Lobby.umap
+    Content/ThirdPerson/UI/WBP_MainMenu.uasset
+    Content/ThirdPerson/Blueprints/BP_MonsterPlayerController.uasset
 
-STEP 1 — Create a Lobby Level
----------------------------------------------------------------
-
-  File > New Level > Empty Level
-  Save as:  /Game/ThirdPerson/Maps/Lobby
-
-  This is the first map that loads so players can host or join
-  before entering the maze. The config already points to it.
-
-
---------------------------------------------------------------------------------
-STEP 2 — Create WBP_MainMenu widget
---------------------------------------------------------------------------------
-
-  Create a new Widget Blueprint at:
-    /Game/ThirdPerson/UI/WBP_MainMenu
-
-  -- Designer Tab --
-
-    Add these UI elements:
-      - TextBlock          (title text: "Labrynth")
-      - Button             Name: Btn_Host     Text: "Host Game"
-      - Button             Name: Btn_Join     Text: "Join Game"
-      - EditableText       Name: Txt_IPAddress
-                           Placeholder: "Enter Host IP..."
-
-  -- Graph Tab --
-
-    Btn_Host > OnClicked:
-      Create Session node
-        Number of Public Connections = 3
-        bIsLAN = false
-      On Success:
-        Open Level (server travel) > "/Game/ThirdPerson/Lvl_ThirdPerson?listen"
-
-    Btn_Join > OnClicked:
-      Get text from Txt_IPAddress
-      Execute Console Command: "open <ip address>"
-        (or use Open Level by Name node with the IP string)
-
-  -- Lobby Level Blueprint (Open Level Blueprint) --
-
-    Event BeginPlay
-      > Create WBP_MainMenu widget
-      > Add to Viewport
+  MODIFY (existing):
+    Content/ThirdPerson/Blueprints/BP_ThirdPersonGameMode.uasset
+    Content/ThirdPerson/Blueprints/BP_ThirdPersonCharacter.uasset
+    Content/ThirdPerson/Blueprints/BP_ThirdPersonPlayerController.uasset
+    Content/Characters/MonsterNPC/BP_NPC.uasset
+    Content/ThirdPerson/Lvl_ThirdPerson.umap  (add spawn points)
+  ─────────────────────────────────────────────────────────────────────────────
 
 
 --------------------------------------------------------------------------------
-STEP 3 — Enable replication on BP_ThirdPersonCharacter
+STEP 1 — Create the Lobby level
 --------------------------------------------------------------------------------
 
-  Open BP_ThirdPersonCharacter
-  In the Class Defaults panel:
-    [x] Replicates          = true
-    [x] Replicate Movement  = true
+  1. In Unreal Editor: File > New Level > Empty Level
+  2. Save it as:  Content/ThirdPerson/Maps/Lobby
+     (In the Save dialog navigate to Content > ThirdPerson > Maps,
+      create the Maps folder if it doesn't exist, name it "Lobby")
+  3. Leave the level empty for now — you will add the menu widget in Step 3.
 
-  For any custom variables (health, isCaught, etc.):
-    Select variable in My Blueprint panel
-    Details panel > Replication > set to "Replicated"
-
-
---------------------------------------------------------------------------------
-STEP 4 — Make BP_NPC player-possessable
---------------------------------------------------------------------------------
-
-  Open BP_NPC (the monster blueprint)
-  In the Class Defaults panel:
-    [x] Replicates          = true
-    [x] Replicate Movement  = true
-    [ ] Auto Possess Player = Disabled
-        AI Controller Class = None  (clear it — player replaces the AI)
-
-  Add a camera so the monster player gets a 3rd-person view:
-    1. Add a Spring Arm component  (attach to root/capsule)
-    2. Add a Camera component      (attach to the Spring Arm)
-    3. Adjust the Spring Arm length to taste (~300-400 is typical)
-
-  NOTE: If BP_NPC extends ACharacter it already supports possession.
-        If it extends APawn directly, make sure it has a
-        FloatingPawnMovement component.
+  WHY: The config now boots into this level first. Players see the
+  host/join menu here before entering the maze.
 
 
 --------------------------------------------------------------------------------
-STEP 5 — Create BP_MonsterPlayerController
+STEP 2 — Modify BP_NPC  (make the monster player-possessable)
 --------------------------------------------------------------------------------
 
-  Duplicate BP_ThirdPersonPlayerController
-  Rename the copy:  BP_MonsterPlayerController
+  Open:  Content/Characters/MonsterNPC/BP_NPC
 
-  This controller gets assigned to the 3rd player (the monster player).
-  Keep the same Move / Look / Jump input bindings — they will drive
-  the monster pawn instead of a survivor character.
+  ── Class Defaults (top toolbar > Class Defaults button) ──────────────────
+    Replicates              = checked (true)
+    Replicate Movement      = checked (true)
+    Auto Possess Player     = Disabled
+    AI Controller Class     = None   ← clear this field completely
+
+  ── Components panel ──────────────────────────────────────────────────────
+    Add a Spring Arm component:
+      - Click "+ Add" > search "Spring Arm" > add it
+      - Parent it to the Capsule Component (drag onto Capsule in hierarchy)
+      - In Details:
+          Target Arm Length    = 400
+          Socket Offset Z      = 80
+          Use Pawn Control Rotation = checked
+
+    Add a Camera component:
+      - Click "+ Add" > search "Camera" > add it
+      - Parent it to the Spring Arm (drag onto SpringArm in hierarchy)
+      - In Details:
+          Use Pawn Control Rotation = unchecked  (spring arm handles this)
+
+  ── Event Graph ───────────────────────────────────────────────────────────
+    Right-click in graph > search "Event BeginPlay" > add it
+
+    From BeginPlay wire:
+      ┌─────────────────────────────────────────────────────────┐
+      │ Event BeginPlay                                         │
+      │   └─> Branch                                           │
+      │         Condition pin: [Is Locally Controlled] node    │
+      │         True  └─> [Enable Input]                       │
+      │                     Player Controller pin:             │
+      │                     [Get Player Controller] (index 0)  │
+      │         False └─> (nothing)                            │
+      └─────────────────────────────────────────────────────────┘
+
+    HOW TO PLACE EACH NODE:
+      "Is Locally Controlled" — right-click > search "Is Locally Controlled"
+      "Branch"                — right-click > search "Branch"
+      "Enable Input"          — right-click > search "Enable Input"
+      "Get Player Controller" — right-click > search "Get Player Controller"
+
+  ── Input bindings ────────────────────────────────────────────────────────
+    In Class Defaults, set:
+      Input Component Class = Enhanced Input Component
+
+    The monster will reuse the same Input Mapping Context (IMC_Default)
+    as the survivor. You will bind this in BP_MonsterPlayerController
+    (Step 4). No extra input actions needed.
+
+  Compile and Save.
 
 
 --------------------------------------------------------------------------------
-STEP 6 — Update BP_ThirdPersonGameMode  (most important step!)
+STEP 3 — Modify BP_ThirdPersonCharacter  (enable network replication)
 --------------------------------------------------------------------------------
 
-  Open BP_ThirdPersonGameMode
-  In Class Defaults:
-    Default Pawn Class        = None  (we spawn manually)
+  Open:  Content/ThirdPerson/Blueprints/BP_ThirdPersonCharacter
+
+  ── Class Defaults ────────────────────────────────────────────────────────
+    Replicates              = checked (true)   ← very important
+    Replicate Movement      = checked (true)   ← very important
+
+  ── Variables — replicate any custom ones you made ────────────────────────
+    For EACH variable in the My Blueprint panel that needs to sync
+    across the network (e.g. health, isCaught, isWinner):
+      1. Click the variable name
+      2. In the Details panel on the right, find "Replication"
+      3. Change dropdown from "None" to "Replicated"
+
+  ── Event Graph — replicate health/caught changes with RepNotify ──────────
+    If you have a variable like "bIsCaught" that triggers game over:
+      1. Select it in My Blueprint
+      2. Set Replication = "RepNotify"
+         (this auto-creates an "On Rep bIsCaught" function)
+      3. In "On Rep bIsCaught", call whatever UI/game-over logic you have
+         — this runs on all clients automatically when the value changes
+
+  Compile and Save.
+
+
+--------------------------------------------------------------------------------
+STEP 4 — Create BP_MonsterPlayerController
+--------------------------------------------------------------------------------
+
+  In the Content Browser:
+    Right-click Content/ThirdPerson/Blueprints/BP_ThirdPersonPlayerController
+    > Duplicate
+    > Rename the copy to:  BP_MonsterPlayerController
+
+  Open BP_MonsterPlayerController.
+
+  ── Event Graph ───────────────────────────────────────────────────────────
+    Find the existing "Event BeginPlay" node (or add one).
+    After BeginPlay, add this chain:
+
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │ Event BeginPlay                                                      │
+    │   └─> Branch                                                        │
+    │         Condition: [Has Authority]                                  │
+    │         (skip — possession is handled by GameMode)                  │
+    │                                                                      │
+    │ Event BeginPlay                                                      │
+    │   └─> [Get Controlled Pawn]                                         │
+    │         └─> [Is Valid] (macro)                                      │
+    │               Is Valid ─> [Cast To BP_NPC]                         │
+    │                              As BP NPC ─> [Get Spring Arm]         │
+    │                (you don't need to do anything extra here —          │
+    │                 the pawn's camera activates automatically           │
+    │                 when possessed)                                      │
+    └──────────────────────────────────────────────────────────────────────┘
+
+    Actually for this controller, the most important thing is the
+    Input Mapping Context setup. Find the section in the existing
+    graph that calls "Add Mapping Context" and confirm it references
+    IMC_Default. That's all you need — no changes required if the
+    original PlayerController already sets up input correctly.
+
+  Compile and Save.
+
+
+--------------------------------------------------------------------------------
+STEP 5 — Modify BP_ThirdPersonGameMode  (the heart of multiplayer)
+--------------------------------------------------------------------------------
+
+  Open:  Content/ThirdPerson/Blueprints/BP_ThirdPersonGameMode
+
+  ── Class Defaults ────────────────────────────────────────────────────────
+    Default Pawn Class        = None
+        (we spawn pawns manually in PostLogin, not automatically)
     Player Controller Class   = BP_ThirdPersonPlayerController
+        (survivors use this; monster player gets overridden in PostLogin)
+    Game Session Class        = (leave as default)
     Max Players               = 3
 
-  -- In the Graph, override the PostLogin event --
+  ── Variables to CREATE ───────────────────────────────────────────────────
+    Click "+ Variable" in the My Blueprint panel for each:
 
-  Add a custom integer variable:  ConnectedPlayers  (default 0)
+    Name: ConnectedPlayerCount   Type: Integer   Default: 0
+    Name: SurvivorSpawnPoints    Type: Actor (array, Object Reference)
+    Name: MonsterSpawnPoint      Type: Actor (Object Reference)
 
-  PostLogin event logic:
-  ┌─────────────────────────────────────────────────────────────────────┐
-  │ Event PostLogin (NewPlayer)                                         │
-  │   > Increment ConnectedPlayers by 1                                 │
-  │   > Branch on ConnectedPlayers value:                               │
-  │                                                                     │
-  │   == 1  (first survivor)                                            │
-  │     Get All Actors With Tag "SurvivorSpawn"                         │
-  │     Get [0] from array                                              │
-  │     Spawn Actor BP_ThirdPersonCharacter at that transform           │
-  │     NewPlayer > Possess(spawnedCharacter)                           │
-  │                                                                     │
-  │   == 2  (second survivor)                                           │
-  │     Get All Actors With Tag "SurvivorSpawn"                         │
-  │     Get [1] from array                                              │
-  │     Spawn Actor BP_ThirdPersonCharacter at that transform           │
-  │     NewPlayer > Possess(spawnedCharacter)                           │
-  │                                                                     │
-  │   == 3  (monster player)                                            │
-  │     Get All Actors With Tag "MonsterSpawn"                          │
-  │     Get [0] from array                                              │
-  │     Spawn Actor BP_NPC at that transform                            │
-  │     NewPlayer > Possess(spawnedMonster)                             │
-  └─────────────────────────────────────────────────────────────────────┘
+  ── Function: FindSpawnPoints ─────────────────────────────────────────────
+    Click "+ Function" in My Blueprint panel
+    Name it:  FindSpawnPoints
 
-  IMPORTANT: PostLogin only runs on the server (authority), which is
-  correct — possession and spawning should always be server-side.
+    Inside this function, build this graph:
+
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │ [Function Entry]                                                     │
+    │   │                                                                  │
+    │   └─> [Get All Actors With Tag]                                     │
+    │           Tag pin: "SurvivorSpawn"   (type the string directly)     │
+    │           Out Actors pin ─> [SET SurvivorSpawnPoints]               │
+    │                 (drag SurvivorSpawnPoints variable in, use SET)      │
+    │   │                                                                  │
+    │   └─> [Get All Actors With Tag]                                     │
+    │           Tag pin: "MonsterSpawn"                                   │
+    │           Out Actors pin ─> [GET element 0]  (GET node on array)   │
+    │                                └─> [SET MonsterSpawnPoint]          │
+    └──────────────────────────────────────────────────────────────────────┘
+
+    HOW: "Get All Actors With Tag" — right-click > search it
+         "GET (copy)" on an array — right-click the array output >
+          drag off and search "GET", pick the array GET with an index pin
+         Index pin on GET = 0
+
+  ── Override: Event PostLogin ─────────────────────────────────────────────
+    Right-click in the Event Graph > search "PostLogin" >
+    select "Add Event > Event On Post Login"   (or "Override PostLogin")
+
+    Build this full graph:
+
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │ Event PostLogin  (NewPlayer = the controller that just connected)    │
+    │   │                                                                  │
+    │   ├─> [Call FindSpawnPoints]   ← call the function you just made    │
+    │   │                                                                  │
+    │   └─> [Integer + Integer]                                           │
+    │           A pin: GET ConnectedPlayerCount                           │
+    │           B pin: 1 (literal)                                        │
+    │           Result ─> SET ConnectedPlayerCount                        │
+    │                          Then pin ─> [Switch on Int]               │
+    │                                          Selection pin:             │
+    │                                          GET ConnectedPlayerCount   │
+    │                                                                      │
+    │         Switch on Int outputs:                                      │
+    │           Case 1 ─────────────────────────────────────────────────►│
+    │             [Spawn Actor from Class]                                 │
+    │               Class: BP_ThirdPersonCharacter                        │
+    │               Spawn Transform:                                       │
+    │                 [GET SurvivorSpawnPoints index 0]                   │
+    │                   └─> [Get Actor Transform]                         │
+    │                             └─> wire to Spawn Transform             │
+    │               Return Value (the spawned character)                  │
+    │                 └─> [Possess]                                        │
+    │                       Pawn pin: Return Value (from Spawn Actor)     │
+    │                       Target pin: NewPlayer  ← the event variable  │
+    │                                                                      │
+    │           Case 2 ─────────────────────────────────────────────────►│
+    │             [Spawn Actor from Class]                                 │
+    │               Class: BP_ThirdPersonCharacter                        │
+    │               Spawn Transform:                                       │
+    │                 [GET SurvivorSpawnPoints index 1]                   │
+    │                   └─> [Get Actor Transform]                         │
+    │               Return Value ─> [Possess]                             │
+    │                                   Target pin: NewPlayer             │
+    │                                                                      │
+    │           Case 3 ─────────────────────────────────────────────────►│
+    │             ── Change the controller type first ──                  │
+    │             NOTE: You cannot swap controller class at runtime.      │
+    │             Instead, cast NewPlayer and call monster-specific       │
+    │             functions after possession.                              │
+    │                                                                      │
+    │             [Spawn Actor from Class]                                 │
+    │               Class: BP_NPC                                          │
+    │               Spawn Transform:                                       │
+    │                 [GET MonsterSpawnPoint]                              │
+    │                   └─> [Get Actor Transform]                         │
+    │               Return Value ─> [Possess]                             │
+    │                                   Target pin: NewPlayer             │
+    └──────────────────────────────────────────────────────────────────────┘
+
+    HOW TO PLACE KEY NODES:
+      "Spawn Actor from Class"  — right-click > search "Spawn Actor"
+      "Possess"                 — right-click > search "Possess"
+                                  (it's under Pawn category)
+                                  Target = the PlayerController
+                                  In Pawn = the spawned actor
+      "Switch on Int"           — right-click > search "Switch on Int"
+                                  In the Details panel add cases 1, 2, 3
+      "Get Actor Transform"     — drag off an Actor reference > search
+                                  "Get Actor Transform"
+      "GET" (array element)     — drag off the SurvivorSpawnPoints
+                                  variable > search "GET" > pick the one
+                                  with an integer index pin
+
+    IMPORTANT — Possess only works on the server (authority):
+      The PostLogin event ONLY fires on the server, so you are safe.
+      Do NOT call Possess from a client-side event.
+
+  ── Override: Event OnPostLogin — handle the monster controller swap ──────
+    Because you cannot change a player's controller class after they join,
+    the cleanest approach is:
+
+    Option A (simple): Give everyone BP_ThirdPersonPlayerController and let
+    the GameMode just possess BP_NPC on the 3rd player. The controller's
+    input still works because BP_NPC now has the same input bindings.
+    This is the recommended approach for a class project.
+
+    Option B (proper): In DefaultGame.ini add a custom GameSession that
+    assigns different controller classes per player index. This is more
+    complex and not needed for a student project.
+
+    For this project — USE OPTION A. The 3rd player's existing controller
+    will possess BP_NPC and drive it with the same WASD/gamepad input.
+
+  Compile and Save.
 
 
 --------------------------------------------------------------------------------
-STEP 7 — Add Spawn Points to the maze level
+STEP 6 — Add Spawn Points to the maze level
 --------------------------------------------------------------------------------
 
-  Open Lvl_ThirdPerson (or your final maze level)
+  Open:  Content/ThirdPerson/Lvl_ThirdPerson.umap
+  (or open whatever level your final maze is in)
 
-  Place actors:
-    2x  Player Start   Tag: "SurvivorSpawn"   (at survivor starting spots)
-    1x  Player Start   Tag: "MonsterSpawn"    (at monster starting spot)
+  ── Place survivor spawn points ───────────────────────────────────────────
+    In the toolbar: Place Actors panel (or press Shift+1 to open)
+    Search for "Player Start"
+    Drag TWO Player Start actors into the level
+    Place them near the maze entrance, spread apart
 
-  To set the tag:
-    Select the actor > Details panel > Actor section > Tags > + > type the tag name
+    For EACH survivor Player Start:
+      Select it > Details panel > Actor section > Tags
+      Click the + button > type:  SurvivorSpawn
+      (Do this for both — both get the same tag, the array will hold them)
 
+  ── Place monster spawn point ─────────────────────────────────────────────
+    Drag ONE more Player Start actor into the level
+    Place it at the other end of the maze (far from survivors)
 
---------------------------------------------------------------------------------
-STEP 8 — Test locally in Play-In-Editor
---------------------------------------------------------------------------------
+    Select it > Details panel > Tags > + > type:  MonsterSpawn
 
-  In the UE5 toolbar dropdown next to Play:
-    Multiplayer Options:
-      Number of Players  = 3
-      Net Mode           = Play As Listen Server
-
-  Hit Play.
-
-  Window 1 = Survivor 1   (host)
-  Window 2 = Survivor 2
-  Window 3 = Monster controller
-
-  Verify each window has its own camera and controls independently.
+  Save the level.
 
 
 --------------------------------------------------------------------------------
-STEP 9 — Testing over a real network
+STEP 7 — Create WBP_MainMenu  (host/join lobby UI)
 --------------------------------------------------------------------------------
 
-  LAN (same WiFi / ethernet):
-    Host clicks "Host Game" in the lobby menu.
-    Clients enter the host's LOCAL IP (e.g. 192.168.1.x) and click Join.
-    Find local IP with:  ip addr   or   hostname -I
+  In the Content Browser:
+    Right-click Content/ThirdPerson/ > User Interface > Widget Blueprint
+    Name it:  WBP_MainMenu
+
+  ── Designer tab — lay out the UI ─────────────────────────────────────────
+
+    Drag these widgets from the Palette into the canvas:
+
+    1. Text (title)
+         Content: "LABRYNTH"
+         Font size: 72
+         Alignment: center
+         Position it near the top of the canvas
+
+    2. Button
+         Name it in the Details panel:  Btn_Host
+         Size: 300 x 80
+         Add a Text widget inside it, content: "HOST GAME"
+
+    3. Button
+         Name it:  Btn_Join
+         Size: 300 x 80
+         Add a Text widget inside it, content: "JOIN GAME"
+
+    4. Editable Text Box
+         Name it:  Txt_IPAddress
+         Hint Text: "Enter Host IP Address..."
+         Size: 300 x 50
+         Place it above or below Btn_Join
+
+    Arrange them vertically centered on the canvas.
+    Check "Is Variable" on all four widgets in Details > Is Variable.
+
+  ── Graph tab — wire up the buttons ───────────────────────────────────────
+
+    In the My Blueprint panel on the left, you will see Btn_Host and
+    Btn_Join listed under Variables (if you checked Is Variable above).
+
+    ── Btn_Host click ────────────────────────────────────────────────────
+    Click Btn_Host in the Variables list > Details panel > Events section
+    Click the + next to "On Clicked"    (this creates an OnClicked node)
+
+    Build this graph from OnClicked:
+
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │ On Clicked (Btn_Host)                                                │
+    │   │                                                                  │
+    │   └─> [Create Session]                                              │
+    │           Number of Public Connections: 3                           │
+    │           bIsLAN: false                                             │
+    │           bIsPresence: true                                         │
+    │           ├─ OnSuccess ─> [Open Level (by Name)]                   │
+    │           │                   Level Name: (make a string variable   │
+    │           │                   or type directly)                     │
+    │           │                   "/Game/ThirdPerson/Lvl_ThirdPerson"   │
+    │           │                   Options: "listen"                     │
+    │           │                   (the Options pin adds ?listen to URL) │
+    │           └─ OnFailure ─> [Print String]                           │
+    │                               In String: "Failed to create session" │
+    └──────────────────────────────────────────────────────────────────────┘
+
+    HOW:
+      "Create Session"  — right-click > search "Create Session"
+                          (it is under Online > Sessions)
+      "Open Level (by Name)" — right-click > search "Open Level"
+                               pick the one with a string Name input
+
+    ── Btn_Join click ────────────────────────────────────────────────────
+    Click Btn_Join in Variables > Details > Events > + On Clicked
+
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │ On Clicked (Btn_Join)                                                │
+    │   │                                                                  │
+    │   └─> [Get Text (Txt_IPAddress)]    ← drag Txt_IPAddress variable  │
+    │           └─> [Text to String]      in, drag off, search "Get Text" │
+    │                   └─> [Append]      then convert to string          │
+    │                         A: "open "  (literal string)                │
+    │                         B: the IP string from above                 │
+    │                         Return ─> [Execute Console Command]         │
+    │                                       Command pin: the appended str │
+    └──────────────────────────────────────────────────────────────────────┘
+
+    HOW:
+      "Get Text"              — drag off Txt_IPAddress > search "Get Text"
+      "Text to String"        — drag off the text output > search "ToString"
+      "Append"                — right-click > search "Append" (string util)
+      "Execute Console Command" — right-click > search "Execute Console Command"
+
+    The final command sent will be:  "open 192.168.1.x"
+    which makes the client connect to that IP on port 7777.
+
+  Compile and Save WBP_MainMenu.
+
+
+--------------------------------------------------------------------------------
+STEP 8 — Wire WBP_MainMenu into the Lobby level
+--------------------------------------------------------------------------------
+
+  Open the Lobby level:  Content/ThirdPerson/Maps/Lobby.umap
+
+  Open the Level Blueprint:
+    Toolbar > Blueprints button (the little blueprint icon) >
+    "Open Level Blueprint"
+
+  In the Level Blueprint graph:
+
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │ Event BeginPlay                                                          │
+  │   └─> [Create Widget]                                                   │
+  │           Class: WBP_MainMenu                                           │
+  │           Return Value ─> [Add to Viewport]                             │
+  │   └─> [Set Input Mode UI Only]                                          │
+  │           Player Controller: [Get Player Controller] (index 0)          │
+  │   └─> [Set Show Mouse Cursor]                                           │
+  │           Player Controller: [Get Player Controller] (index 0)          │
+  │           Show Mouse Cursor: checked (true)                             │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+  HOW:
+    "Create Widget"           — right-click > search "Create Widget"
+    "Add to Viewport"         — drag off Return Value > search "Add to Viewport"
+    "Set Input Mode UI Only"  — right-click > search "Set Input Mode UI Only"
+    "Set Show Mouse Cursor"   — drag off a Get Player Controller >
+                                search "Show Mouse Cursor" > it is a bool
+                                pin you SET on the controller
+
+  Compile and Save the Level Blueprint.
+
+
+--------------------------------------------------------------------------------
+STEP 9 — Test in PIE (Play In Editor)
+--------------------------------------------------------------------------------
+
+  ── Setup ─────────────────────────────────────────────────────────────────
+    Click the small arrow/dropdown next to the Play button in the toolbar
+    Set:
+      Number of Players   = 3
+      Net Mode            = Play As Listen Server
+      Run Under One Process = checked  (easier for testing)
+
+  ── Hit Play ──────────────────────────────────────────────────────────────
+    You will get 3 windows:
+      Window 1 = Survivor 1  (this is the listen server / host)
+      Window 2 = Survivor 2
+      Window 3 = Monster controller
+
+    Each window should have its own independent camera and controls.
+    The lobby menu may not appear in PIE multi-window mode — that is
+    normal. To test the full lobby flow, use Standalone Game mode.
+
+  ── Standalone test ───────────────────────────────────────────────────────
+    Change Net Mode to "Standalone"
+    Run the game once as host (it will open the lobby, click Host)
+    Run a second instance from Standalone and type in 127.0.0.1 (loopback)
+    to test joining locally.
+
+
+--------------------------------------------------------------------------------
+STEP 10 — Testing over a real network
+--------------------------------------------------------------------------------
+
+  LAN (same WiFi or ethernet switch):
+    Host clicks "HOST GAME". Their machine becomes the listen server.
+    Clients type the host's LOCAL IP into the join field.
+    Find local IP:  open a terminal > type  ip addr  or  hostname -I
+    Example:  192.168.1.42
 
   Internet (different locations):
-    Host needs to port-forward  UDP 7777  on their router.
-    Clients enter the host's PUBLIC IP and click Join.
-    Host can find their public IP at:  https://whatismyipaddress.com
+    Host must port-forward  UDP port 7777  on their home router.
+      Router admin panel (usually 192.168.1.1) > Port Forwarding >
+      Add rule: Protocol=UDP, External Port=7777, Internal IP=host PC IP,
+      Internal Port=7777
+    Clients use the host's PUBLIC IP.
+    Host finds public IP at:  https://whatismyipaddress.com
+      (do NOT share this publicly — just with your teammates)
 
 
 ================================================================================
-  QUICK REFERENCE — NODE NAMES IN BLUEPRINTS
+  QUICK REFERENCE — BLUEPRINT NODE LOCATIONS
 ================================================================================
 
-  "Create Session"                — Sessions category
-  "Open Level (by Name)"          — Game category  (use ?listen suffix for host)
-  "Execute Console Command"       — System category (for client: "open <IP>")
-  "Get All Actors With Tag"       — Utilities > Actor category
-  "Spawn Actor from Class"        — Spawn category
-  "Possess"                       — Pawn category  (call on the controller)
-  "PostLogin" (override)          — right-click in GameMode graph > Override
+  Node Name                    | Where to find it (right-click > search)
+  ─────────────────────────────┼──────────────────────────────────────────
+  Create Session               | Online > Sessions
+  Open Level (by Name)         | Game > (search "Open Level")
+  Execute Console Command      | System > (search "Execute Console")
+  Get All Actors With Tag      | Utilities > Actor
+  Spawn Actor from Class       | Gameplay > (search "Spawn Actor")
+  Possess                      | Pawn > (search "Possess")
+  Get Actor Transform          | drag off any Actor ref > Transform
+  Switch on Int                | Utilities > Flow Control
+  Create Widget                | User Interface
+  Add to Viewport              | drag off widget ref > search it
+  Set Input Mode UI Only       | Input > (search "Input Mode")
+  Is Locally Controlled        | Pawn > (search "Locally Controlled")
+  Enable Input                 | Input > (search "Enable Input")
+  Get Player Controller        | Game > (search "Get Player Controller")
+  Branch                       | Utilities > Flow Control
+  Get Text (widget ref)        | drag off widget variable > search "Get Text"
+  Text to String               | Utilities > String
+  Append (string)              | Utilities > String > Append
+  Print String                 | Development > (search "Print String")
 
 
 ================================================================================
   FILE LOCATIONS SUMMARY
 ================================================================================
 
-  Config (already edited):
+  On disk (Content/ folder):
+  ─────────────────────────────────────────────────────────────────────────────
+  CONFIG (already edited):
     Config/DefaultEngine.ini
     Config/DefaultGame.ini
 
-  Blueprints to create or modify:
-    /Game/ThirdPerson/Maps/Lobby                     (new level)
-    /Game/ThirdPerson/UI/WBP_MainMenu                (new widget)
-    /Game/ThirdPerson/Blueprints/BP_ThirdPersonGameMode   (modify)
-    /Game/ThirdPerson/Blueprints/BP_ThirdPersonCharacter  (modify)
-    /Content/Characters/MonsterNPC/BP_NPC                 (modify)
-    /Game/ThirdPerson/Blueprints/BP_MonsterPlayerController (new — duplicate of PlayerController)
+  NEW files to create in Unreal Editor:
+    Content/ThirdPerson/Maps/Lobby.umap
+    Content/ThirdPerson/UI/WBP_MainMenu.uasset
+    Content/ThirdPerson/Blueprints/BP_MonsterPlayerController.uasset
+
+  EXISTING files to modify:
+    Content/ThirdPerson/Blueprints/BP_ThirdPersonGameMode.uasset
+    Content/ThirdPerson/Blueprints/BP_ThirdPersonCharacter.uasset
+    Content/ThirdPerson/Blueprints/BP_ThirdPersonPlayerController.uasset
+    Content/Characters/MonsterNPC/BP_NPC.uasset
+    Content/ThirdPerson/Lvl_ThirdPerson.umap  (add 3 Player Start actors)
+
+  In Unreal Content Browser these same paths appear as /Game/... :
+    /Game/ThirdPerson/Maps/Lobby
+    /Game/ThirdPerson/UI/WBP_MainMenu
+    /Game/ThirdPerson/Blueprints/BP_MonsterPlayerController
+    /Game/ThirdPerson/Blueprints/BP_ThirdPersonGameMode
+    /Game/ThirdPerson/Blueprints/BP_ThirdPersonCharacter
+    /Game/Characters/MonsterNPC/BP_NPC
+    etc.
 
 
 ================================================================================
