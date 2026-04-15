@@ -1,0 +1,246 @@
+================================================================================
+  LABRYNTH PROJECT — ONLINE MULTIPLAYER SETUP GUIDE
+  3 Players: 2 Survivors + 1 Monster Controller
+================================================================================
+
+
+CONFIG CHANGES (already done — these files have been updated)
+---------------------------------------------------------------
+
+  DefaultEngine.ini:
+    - Online Subsystem NULL enabled (LAN / direct-IP play)
+    - Network bandwidth tuned
+    - Splitscreen turned OFF
+    - Lobby map set as default startup map
+    - GlobalDefaultServerGameMode set
+
+  DefaultGame.ini:
+    - MaxPlayers = 3
+
+  To upgrade from LAN to internet later:
+    - Swap DefaultPlatformService=NULL  to  =Steam  (Steamworks)
+    - Or swap to =EOS  (Epic Online Services — free)
+
+
+================================================================================
+  BLUEPRINT STEPS (done inside Unreal Editor)
+================================================================================
+
+
+STEP 1 — Create a Lobby Level
+---------------------------------------------------------------
+
+  File > New Level > Empty Level
+  Save as:  /Game/ThirdPerson/Maps/Lobby
+
+  This is the first map that loads so players can host or join
+  before entering the maze. The config already points to it.
+
+
+--------------------------------------------------------------------------------
+STEP 2 — Create WBP_MainMenu widget
+--------------------------------------------------------------------------------
+
+  Create a new Widget Blueprint at:
+    /Game/ThirdPerson/UI/WBP_MainMenu
+
+  -- Designer Tab --
+
+    Add these UI elements:
+      - TextBlock          (title text: "Labrynth")
+      - Button             Name: Btn_Host     Text: "Host Game"
+      - Button             Name: Btn_Join     Text: "Join Game"
+      - EditableText       Name: Txt_IPAddress
+                           Placeholder: "Enter Host IP..."
+
+  -- Graph Tab --
+
+    Btn_Host > OnClicked:
+      Create Session node
+        Number of Public Connections = 3
+        bIsLAN = false
+      On Success:
+        Open Level (server travel) > "/Game/ThirdPerson/Lvl_ThirdPerson?listen"
+
+    Btn_Join > OnClicked:
+      Get text from Txt_IPAddress
+      Execute Console Command: "open <ip address>"
+        (or use Open Level by Name node with the IP string)
+
+  -- Lobby Level Blueprint (Open Level Blueprint) --
+
+    Event BeginPlay
+      > Create WBP_MainMenu widget
+      > Add to Viewport
+
+
+--------------------------------------------------------------------------------
+STEP 3 — Enable replication on BP_ThirdPersonCharacter
+--------------------------------------------------------------------------------
+
+  Open BP_ThirdPersonCharacter
+  In the Class Defaults panel:
+    [x] Replicates          = true
+    [x] Replicate Movement  = true
+
+  For any custom variables (health, isCaught, etc.):
+    Select variable in My Blueprint panel
+    Details panel > Replication > set to "Replicated"
+
+
+--------------------------------------------------------------------------------
+STEP 4 — Make BP_NPC player-possessable
+--------------------------------------------------------------------------------
+
+  Open BP_NPC (the monster blueprint)
+  In the Class Defaults panel:
+    [x] Replicates          = true
+    [x] Replicate Movement  = true
+    [ ] Auto Possess Player = Disabled
+        AI Controller Class = None  (clear it — player replaces the AI)
+
+  Add a camera so the monster player gets a 3rd-person view:
+    1. Add a Spring Arm component  (attach to root/capsule)
+    2. Add a Camera component      (attach to the Spring Arm)
+    3. Adjust the Spring Arm length to taste (~300-400 is typical)
+
+  NOTE: If BP_NPC extends ACharacter it already supports possession.
+        If it extends APawn directly, make sure it has a
+        FloatingPawnMovement component.
+
+
+--------------------------------------------------------------------------------
+STEP 5 — Create BP_MonsterPlayerController
+--------------------------------------------------------------------------------
+
+  Duplicate BP_ThirdPersonPlayerController
+  Rename the copy:  BP_MonsterPlayerController
+
+  This controller gets assigned to the 3rd player (the monster player).
+  Keep the same Move / Look / Jump input bindings — they will drive
+  the monster pawn instead of a survivor character.
+
+
+--------------------------------------------------------------------------------
+STEP 6 — Update BP_ThirdPersonGameMode  (most important step!)
+--------------------------------------------------------------------------------
+
+  Open BP_ThirdPersonGameMode
+  In Class Defaults:
+    Default Pawn Class        = None  (we spawn manually)
+    Player Controller Class   = BP_ThirdPersonPlayerController
+    Max Players               = 3
+
+  -- In the Graph, override the PostLogin event --
+
+  Add a custom integer variable:  ConnectedPlayers  (default 0)
+
+  PostLogin event logic:
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │ Event PostLogin (NewPlayer)                                         │
+  │   > Increment ConnectedPlayers by 1                                 │
+  │   > Branch on ConnectedPlayers value:                               │
+  │                                                                     │
+  │   == 1  (first survivor)                                            │
+  │     Get All Actors With Tag "SurvivorSpawn"                         │
+  │     Get [0] from array                                              │
+  │     Spawn Actor BP_ThirdPersonCharacter at that transform           │
+  │     NewPlayer > Possess(spawnedCharacter)                           │
+  │                                                                     │
+  │   == 2  (second survivor)                                           │
+  │     Get All Actors With Tag "SurvivorSpawn"                         │
+  │     Get [1] from array                                              │
+  │     Spawn Actor BP_ThirdPersonCharacter at that transform           │
+  │     NewPlayer > Possess(spawnedCharacter)                           │
+  │                                                                     │
+  │   == 3  (monster player)                                            │
+  │     Get All Actors With Tag "MonsterSpawn"                          │
+  │     Get [0] from array                                              │
+  │     Spawn Actor BP_NPC at that transform                            │
+  │     NewPlayer > Possess(spawnedMonster)                             │
+  └─────────────────────────────────────────────────────────────────────┘
+
+  IMPORTANT: PostLogin only runs on the server (authority), which is
+  correct — possession and spawning should always be server-side.
+
+
+--------------------------------------------------------------------------------
+STEP 7 — Add Spawn Points to the maze level
+--------------------------------------------------------------------------------
+
+  Open Lvl_ThirdPerson (or your final maze level)
+
+  Place actors:
+    2x  Player Start   Tag: "SurvivorSpawn"   (at survivor starting spots)
+    1x  Player Start   Tag: "MonsterSpawn"    (at monster starting spot)
+
+  To set the tag:
+    Select the actor > Details panel > Actor section > Tags > + > type the tag name
+
+
+--------------------------------------------------------------------------------
+STEP 8 — Test locally in Play-In-Editor
+--------------------------------------------------------------------------------
+
+  In the UE5 toolbar dropdown next to Play:
+    Multiplayer Options:
+      Number of Players  = 3
+      Net Mode           = Play As Listen Server
+
+  Hit Play.
+
+  Window 1 = Survivor 1   (host)
+  Window 2 = Survivor 2
+  Window 3 = Monster controller
+
+  Verify each window has its own camera and controls independently.
+
+
+--------------------------------------------------------------------------------
+STEP 9 — Testing over a real network
+--------------------------------------------------------------------------------
+
+  LAN (same WiFi / ethernet):
+    Host clicks "Host Game" in the lobby menu.
+    Clients enter the host's LOCAL IP (e.g. 192.168.1.x) and click Join.
+    Find local IP with:  ip addr   or   hostname -I
+
+  Internet (different locations):
+    Host needs to port-forward  UDP 7777  on their router.
+    Clients enter the host's PUBLIC IP and click Join.
+    Host can find their public IP at:  https://whatismyipaddress.com
+
+
+================================================================================
+  QUICK REFERENCE — NODE NAMES IN BLUEPRINTS
+================================================================================
+
+  "Create Session"                — Sessions category
+  "Open Level (by Name)"          — Game category  (use ?listen suffix for host)
+  "Execute Console Command"       — System category (for client: "open <IP>")
+  "Get All Actors With Tag"       — Utilities > Actor category
+  "Spawn Actor from Class"        — Spawn category
+  "Possess"                       — Pawn category  (call on the controller)
+  "PostLogin" (override)          — right-click in GameMode graph > Override
+
+
+================================================================================
+  FILE LOCATIONS SUMMARY
+================================================================================
+
+  Config (already edited):
+    Config/DefaultEngine.ini
+    Config/DefaultGame.ini
+
+  Blueprints to create or modify:
+    /Game/ThirdPerson/Maps/Lobby                     (new level)
+    /Game/ThirdPerson/UI/WBP_MainMenu                (new widget)
+    /Game/ThirdPerson/Blueprints/BP_ThirdPersonGameMode   (modify)
+    /Game/ThirdPerson/Blueprints/BP_ThirdPersonCharacter  (modify)
+    /Content/Characters/MonsterNPC/BP_NPC                 (modify)
+    /Game/ThirdPerson/Blueprints/BP_MonsterPlayerController (new — duplicate of PlayerController)
+
+
+================================================================================
+  END OF GUIDE
+================================================================================
