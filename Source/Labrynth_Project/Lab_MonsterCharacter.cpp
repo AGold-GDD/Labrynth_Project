@@ -91,10 +91,6 @@ void ALab_MonsterCharacter::OnTagSphereOverlap(UPrimitiveComponent* OverlappedCo
 	ALab_SurvivorCharacter* Survivor = Cast<ALab_SurvivorCharacter>(OtherActor);
 	if (!Survivor) return;
 
-	// Don't re-catch an already caught survivor — the sphere can fire multiple overlaps
-	ALab_PlayerState* SurvivorPS = Survivor->GetPlayerState<ALab_PlayerState>();
-	if (SurvivorPS && SurvivorPS->bIsCaught) return;
-
 	APlayerController* SurvivorPC = Cast<APlayerController>(Survivor->GetController());
 	if (!SurvivorPC) return;
 
@@ -103,6 +99,7 @@ void ALab_MonsterCharacter::OnTagSphereOverlap(UPrimitiveComponent* OverlappedCo
 		GM->NotifySurvivorCaught(SurvivorPC);
 	}
 
+	ALab_PlayerState* SurvivorPS = Survivor->GetPlayerState<ALab_PlayerState>();
 	const FString Name = SurvivorPS ? SurvivorPS->GetPlayerName() : TEXT("A Survivor");
 	Multicast_OnSurvivorTagged(Name);
 }
