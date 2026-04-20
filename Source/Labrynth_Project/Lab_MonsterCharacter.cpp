@@ -94,13 +94,15 @@ void ALab_MonsterCharacter::OnTagSphereOverlap(UPrimitiveComponent* OverlappedCo
 	APlayerController* SurvivorPC = Cast<APlayerController>(Survivor->GetController());
 	if (!SurvivorPC) return;
 
+	// Get name before NotifySurvivorCaught destroys the survivor pawn
+	ALab_PlayerState* SurvivorPS = Survivor->GetPlayerState<ALab_PlayerState>();
+	const FString Name = SurvivorPS ? SurvivorPS->GetPlayerName() : TEXT("A Survivor");
+
 	if (ALab_GameMode* GM = GetWorld()->GetAuthGameMode<ALab_GameMode>())
 	{
 		GM->NotifySurvivorCaught(SurvivorPC);
 	}
 
-	ALab_PlayerState* SurvivorPS = Survivor->GetPlayerState<ALab_PlayerState>();
-	const FString Name = SurvivorPS ? SurvivorPS->GetPlayerName() : TEXT("A Survivor");
 	Multicast_OnSurvivorTagged(Name);
 }
 

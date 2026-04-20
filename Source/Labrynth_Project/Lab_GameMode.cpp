@@ -76,18 +76,40 @@ void ALab_GameMode::NotifySurvivorCaught(APlayerController* CaughtPlayer)
 {
 	if (!CaughtPlayer) return;
 
-	// Mark the survivor as caught in their PlayerState
-	if (ALab_PlayerState* PS = CaughtPlayer->GetPlayerState<ALab_PlayerState>())
+	APawn* OldPawn = CaughtPlayer->GetPawn();
+	UE_LOG(LogGameMode, Log, TEXT("NotifySurvivorCaught: controller=%s pawn=%s"),
+		*CaughtPlayer->GetName(),
+		OldPawn ? *OldPawn->GetName() : TEXT("NULL"));
+
+	// Save the survivor's position before destroying their pawn
+	FTransform SpawnTransform = FTransform::Identity;
+	if (OldPawn)
 	{
-		PS->SetCaught(); // Idempotent — safe to call multiple times
+		SpawnTransform = OldPawn->GetActorTransform();
+		CaughtPlayer->UnPossess();
+		OldPawn->Destroy();
+		UE_LOG(LogGameMode, Log, TEXT("NotifySurvivorCaught: old pawn destroyed, spawning monster"));
+	}
+	else
+	{
+		UE_LOG(LogGameMode, Warning, TEXT("NotifySurvivorCaught: GetPawn() was null — skipping respawn"));
+		return;
 	}
 
-	// Update shared count on the GameState (replicates to all clients)
+	// Mark as caught in PlayerState
+	if (ALab_PlayerState* PS = CaughtPlayer->GetPlayerState<ALab_PlayerState>())
+	{
+		PS->SetCaught();
+	}
+
 	++CaughtSurvivorCount;
 	if (ALab_GameState* GS = GetGameState<ALab_GameState>())
 	{
 		GS->NotifySurvivorCaught();
 	}
+
+	// Respawn this player as a monster at the spot they were caught
+	SpawnAndPossess(CaughtPlayer, MonsterPawnClass, SpawnTransform, EPlayerRole::Monster);
 
 	EvaluateWinCondition();
 }
