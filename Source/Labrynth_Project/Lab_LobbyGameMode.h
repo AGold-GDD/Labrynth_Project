@@ -17,4 +17,6 @@ class LABRYNTH_PROJECT_API ALab_LobbyGameMode : public AGameModeBase
 
 public:
 	ALab_LobbyGameMode();
+
+	virtual void PostLogin(APlayerController* NewPlayer) override;
 };
