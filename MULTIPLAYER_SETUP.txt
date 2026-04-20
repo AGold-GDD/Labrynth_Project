@@ -1,0 +1,335 @@
+================================================================================
+  LABRYNTH — MULTIPLAYER SETUP
+  3 Players: 2 Survivors + 1 Monster
+================================================================================
+
+  STATUS OVERVIEW
+  ─────────────────────────────────────────────────────────────────────────────
+  [x] C++ source written           Source/Labrynth_Project/
+  [x] Config files set up          Config/DefaultEngine.ini & DefaultGame.ini
+  [x] BP_Lab_GameInstance created  Content/MultiplayerStuff/
+  [x] BP_Lab_GameMode created      Content/MultiplayerStuff/
+  [x] BP_Lab_PlayerController      Content/MultiplayerStuff/
+  [x] BP_SurvivorCharacter         Content/MultiplayerStuff/
+
+  [ ] Compile C++ (do this first — everything below needs it)
+  [ ] Wire BP_Lab_GameMode class defaults
+  [ ] Set up BP_SurvivorCharacter replication
+  [ ] Create BP_MonsterCharacter
+  [ ] Create WBP_Menu (host/join UI)
+  [ ] Wire Lobby level blueprint
+  [ ] Place spawn points in your maze level
+  [ ] Test in PIE
+
+
+================================================================================
+  STEP 1 — COMPILE THE C++  (one time only)
+================================================================================
+
+  1. Close Unreal Editor completely.
+  2. Right-click Labrynth_Project.uproject in File Explorer.
+     Select "Generate Visual Studio project files".
+  3. Open Labrynth_Project.sln in Visual Studio 2022.
+  4. Set the toolbar dropdowns to: Development Editor / Win64
+  5. Press Ctrl+Shift+B to build.
+     First build takes 5–15 minutes. Grab a coffee.
+  6. When it says "Build: 1 succeeded", open the editor by double-clicking
+     Labrynth_Project.uproject.
+
+  If the build fails, open View > Output in Visual Studio and read the first
+  red error line. Don't try to fix multiple errors at once — fix the first,
+  rebuild, repeat.
+
+
+================================================================================
+  STEP 2 — WIRE BP_Lab_GameMode  (class defaults only, no graph changes)
+================================================================================
+
+  Open Content/MultiplayerStuff/BP_Lab_GameMode.
+  Click "Class Defaults" in the top toolbar.
+  In the Details panel, set these values:
+
+    Player Controller Class   →  BP_Lab_PlayerController
+    Survivor Pawn Class       →  BP_SurvivorCharacter
+    Monster Pawn Class        →  BP_MonsterCharacter  (set after Step 4)
+    Default Pawn Class        →  None
+    Total Survivors           →  2
+
+  Compile and Save.
+
+  Note: Player State Class and Game State Class are already set by the C++
+  base — you don't need to touch them.
+
+
+================================================================================
+  STEP 3 — WIRE BP_SurvivorCharacter  (replication + caught reaction)
+================================================================================
+
+  Open Content/MultiplayerStuff/BP_SurvivorCharacter.
+  Click "Class Defaults".
+  In the Details panel, under Replication, make sure:
+    Replicates          = checked
+    Replicate Movement  = checked
+
+  That's enough for basic multiplayer — survivors will move in sync.
+
+  ── Optional: Show a "You were caught" screen ─────────────────────────────────
+
+  If you want a reaction when the monster tags a survivor, add this to the
+  character's Event Graph:
+
+    Event BeginPlay
+      → Is Locally Controlled?  (Branch node)
+      → [True]  Get Player State → Cast to Lab_PlayerState
+      → Bind Event to On Survivor Caught
+      → [create a custom event here] → show your caught widget or play an animation
+
+  The "Is Locally Controlled" check stops all the remote copies of the
+  character from trying to show a UI at the same time.
+
+  Compile and Save.
+
+
+================================================================================
+  STEP 4 — CREATE BP_MonsterCharacter
+================================================================================
+
+  In Content/MultiplayerStuff/, right-click > Blueprint Class > Character.
+  Name it: BP_MonsterCharacter.
+
+  ── If you have an existing monster mesh (e.g. BP_NPC): ───────────────────────
+  Duplicate BP_NPC instead. Right-click it > Duplicate. Move the copy to
+  Content/MultiplayerStuff/ and rename it BP_MonsterCharacter. This keeps
+  any mesh or animation work you've already done.
+
+  ── Class Defaults ────────────────────────────────────────────────────────────
+  Open BP_MonsterCharacter. Click Class Defaults. Set:
+    Replicates              = checked
+    Replicate Movement      = checked
+    Auto Possess Player     = Disabled
+    AI Controller Class     = None   ← clear this or the AI will fight the player
+
+  ── Add a Camera (if not already there) ───────────────────────────────────────
+  In the Components panel, click + Add:
+    1. Add "Spring Arm". In Details set:
+         Target Arm Length         = 400
+         Socket Offset Z           = 80
+         Use Pawn Control Rotation = true
+    2. Add "Camera". Drag it onto Spring Arm in the hierarchy. In Details set:
+         Use Pawn Control Rotation = false  ← spring arm handles this; both true = camera spin
+
+  ── Event Graph: Enable Input only for the local player ───────────────────────
+  Without this, every machine tries to control the monster at the same time.
+
+    Event BeginPlay
+      → Is Locally Controlled?  (Branch)
+      → [True]  Enable Input → Player Controller pin: Get Player Controller (Index 0)
+
+  ── Event Graph: Tag survivors on touch ───────────────────────────────────────
+  Add a Sphere Collision component (name it TagSphere, radius ~100).
+  In the Event Graph:
+
+    On Component Begin Overlap (TagSphere)
+      → Has Authority?  (Branch)   ← only the server should record a catch
+      → [True]  Cast Other Actor to BP_SurvivorCharacter
+      → [Success]  Get Controller (survivor's controller)
+      → Get Game Mode → Cast to Lab_GameMode
+      → Notify Survivor Caught (pass the survivor's controller)
+
+  Compile and Save.
+  Go back to BP_Lab_GameMode > Class Defaults > Monster Pawn Class → BP_MonsterCharacter.
+
+
+================================================================================
+  STEP 5 — CREATE WBP_Menu  (host/join UI)
+================================================================================
+
+  In Content/MultiplayerStuff/, right-click > User Interface > Widget Blueprint.
+  Name it: WBP_Menu.
+
+  ── Designer tab: add these widgets ───────────────────────────────────────────
+  From the Palette on the left, drag in:
+    - Button          → name it Btn_Host, label text "HOST GAME"
+    - Button          → name it Btn_Join, label text "JOIN GAME"
+    - Editable Text Box → name it Txt_IPAddress, hint text "Enter Host IP..."
+    - Text            → name it Txt_Status  (shows IP or error messages)
+
+  For each widget, check "Is Variable" in Details so you can reference them
+  in the graph.
+
+  ── Graph tab: HOST button ─────────────────────────────────────────────────────
+  Select Btn_Host in My Blueprint > Details > Events > click + next to On Clicked.
+
+    On Clicked (Btn_Host)
+      → Get Game Instance → Cast to BP_Lab_GameInstance
+      → Host Game
+           Travel Map Path = /Game/ThirdPerson/Lvl_ThirdPerson  (your maze level)
+           Max Players     = 3
+      → Get Local IP Address → Set Text (target: Txt_Status)
+
+  To show an error if hosting fails, after the cast add:
+    → Bind Event to On Host Session Result → [custom event: OnHostResult]
+    Inside OnHostResult: Branch on bWasSuccessful → [False] Set Text "Failed to host!"
+
+  ── Graph tab: JOIN button ─────────────────────────────────────────────────────
+  Select Btn_Join in My Blueprint > Details > Events > click + next to On Clicked.
+
+    On Clicked (Btn_Join)
+      → Get Game Instance → Cast to BP_Lab_GameInstance
+      → Join Game By IP
+           IP Address = [get Txt_IPAddress variable → Get Text → To String]
+
+  ── Graph tab: show local IP on open ──────────────────────────────────────────
+  Right-click in the graph, search "Event Construct".
+
+    Event Construct
+      → Get Game Instance → Cast to BP_Lab_GameInstance
+      → Get Local IP Address → Set Text (target: Txt_Status)
+
+  Compile and Save.
+
+
+================================================================================
+  STEP 6 — WIRE THE LOBBY LEVEL BLUEPRINT
+================================================================================
+
+  Open Content/MultiplayerStuff/Lobby.umap.
+
+  In the top toolbar, click the Blueprints button (blueprint icon with dropdown
+  arrow) > "Open Level Blueprint".
+
+  Add these nodes in the Event Graph:
+
+    Event BeginPlay
+      → Create Widget (Class: WBP_Menu)
+      → Add to Viewport
+      → Get Player Controller (Index 0)
+      → Enable UI Input Mode
+
+  That's it — four nodes. Compile and Save the Level Blueprint.
+
+  If "Enable UI Input Mode" doesn't show up when you search: the C++ hasn't
+  compiled yet, or BP_Lab_PlayerController isn't set as the Player Controller
+  Class in BP_Lab_GameMode. As a fallback, use the built-in "Set Input Mode
+  UI Only" node and "Set Show Mouse Cursor = true" on the same controller.
+
+
+================================================================================
+  STEP 7 — PLACE SPAWN POINTS IN YOUR MAZE LEVEL
+================================================================================
+
+  Open your maze level (Content/ThirdPerson/Lvl_ThirdPerson or equivalent).
+
+  From the Place Actors panel (Shift+1), drag in "Player Start" actors:
+    - 2× Player Start near the maze entrance → tag each one: SurvivorSpawn
+    - 1× Player Start at the far end of the maze → tag it: MonsterSpawn
+
+  To set the tag on each one:
+    Select the Player Start > Details panel > Actor section > Tags > click + >
+    type the tag name exactly (case-sensitive).
+
+  Space the two SurvivorSpawn actors a couple meters apart so players don't
+  spawn on top of each other. Rotate them (E key) so the blue arrow faces
+  into the maze.
+
+  Save the level.
+
+
+================================================================================
+  STEP 8 — TEST IN PIE
+================================================================================
+
+  In the editor toolbar, click the dropdown arrow next to the Play button.
+  Select "Advanced Settings". Set:
+    Number of Players  = 3
+    Net Mode           = Play As Listen Server
+    Run Under One Process = checked
+
+  Press Play. Three windows open:
+    Window 1 = Survivor 1 (the listen server — has full authority)
+    Window 2 = Survivor 2 (client)
+    Window 3 = Monster    (client)
+
+  Click inside a window to give it focus before pressing WASD.
+  Press Shift+F1 to release the cursor from a PIE window.
+
+  ── What to check ─────────────────────────────────────────────────────────────
+    All 3 players spawn at different locations
+    Moving in Window 1 is visible in Windows 2 and 3
+    Window 3 controls the monster, not a survivor
+    No red "Accessed None" errors in the Output Log
+
+  ── Common errors ─────────────────────────────────────────────────────────────
+  "PawnClass is null"
+    → BP_Lab_GameMode > Class Defaults > set Survivor/Monster Pawn Class.
+
+  "No actor with tag SurvivorSpawn"
+    → Open the maze level. Confirm the Player Start tags. SurvivorSpawn is
+      case-sensitive — not survivorspawn or Survivorspawn.
+
+  All players spawn at the same spot
+    → Make sure BOTH survivor Player Starts have the SurvivorSpawn tag,
+      and that they're placed in the right level (the maze, not the lobby).
+
+  Monster has no input or camera
+    → Check the Enable Input BeginPlay graph is in BP_MonsterCharacter.
+      Check the Branch condition is "Is Locally Controlled" (not just always true).
+
+  Lobby cursor doesn't appear
+    → Confirm "Enable UI Input Mode" is called in the Lobby Level Blueprint.
+      Confirm BP_Lab_PlayerController is set in BP_Lab_GameMode's Class Defaults.
+
+
+================================================================================
+  TESTING ON A REAL NETWORK
+================================================================================
+
+  LAN (same Wi-Fi):
+    Host clicks HOST GAME. Txt_Status shows the host IP.
+    Others type that IP (e.g. 192.168.1.42) and click JOIN GAME.
+    If it fails, the firewall may be blocking port 7777. Add an inbound UDP
+    rule: Windows Security > Firewall > Advanced > Inbound Rules > New Rule >
+    Port > UDP > 7777 > Allow.
+
+  Internet (different locations):
+    Host must port-forward UDP 7777 on their router (router admin page,
+    usually 192.168.1.1 — look for Port Forwarding under NAT or Firewall).
+    Clients connect using the host's PUBLIC IP (find it at whatismyipaddress.com).
+
+
+================================================================================
+  SWITCHING TO STEAM LATER
+================================================================================
+
+  When you're ready:
+  1. In Config/DefaultEngine.ini, change:
+       DefaultPlatformService=NULL  →  DefaultPlatformService=Steam
+  2. Uncomment the [OnlineSubsystemSteam] block at the bottom of that file.
+  3. Replace SteamDevAppId=480 with your real Steam AppID.
+
+  The C++ Lab_GameInstance already handles this — it reads the subsystem at
+  runtime, so no C++ changes needed.
+
+
+================================================================================
+  QUICK REFERENCE — WHAT EACH C++ CLASS DOES
+================================================================================
+
+  Lab_GameMode       Server only. Spawns the right pawn when each player connects.
+                     Tracks win conditions. Override OnMonsterWins / OnSurvivorsWin
+                     in BP_Lab_GameMode to trigger your end-game screens.
+
+  Lab_GameState      Exists on every machine. Holds GamePhase, player count,
+                     caught count. Read these in your HUD.
+
+  Lab_PlayerState    Exists on every machine, one per player. Holds PlayerRole
+                     and bIsCaught. Bind to OnSurvivorCaught to react to a catch.
+
+  Lab_PlayerController  Shared by survivors and monster. Exposes:
+                     EnableUIInputMode / EnableGameInputMode / IsMonsterPlayer /
+                     IsLocalController_BP — all callable from any Blueprint.
+
+  Lab_GameInstance   Persists across level loads. Handles Host / Join / Disconnect.
+                     Call HostGame and JoinGameByIP from WBP_Menu.
+
+================================================================================
