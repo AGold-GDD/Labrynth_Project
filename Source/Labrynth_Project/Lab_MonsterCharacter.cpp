@@ -92,10 +92,8 @@ void ALab_MonsterCharacter::OnTagSphereOverlap(UPrimitiveComponent* OverlappedCo
 	if (!Survivor) return;
 
 	// Don't re-catch an already caught survivor — the sphere can fire multiple overlaps
-	if (ALab_PlayerState* SurvivorPS = Survivor->GetPlayerState<ALab_PlayerState>())
-	{
-		if (SurvivorPS->bIsCaught) return;
-	}
+	ALab_PlayerState* SurvivorPS = Survivor->GetPlayerState<ALab_PlayerState>();
+	if (SurvivorPS && SurvivorPS->bIsCaught) return;
 
 	APlayerController* SurvivorPC = Cast<APlayerController>(Survivor->GetController());
 	if (!SurvivorPC) return;
@@ -103,5 +101,17 @@ void ALab_MonsterCharacter::OnTagSphereOverlap(UPrimitiveComponent* OverlappedCo
 	if (ALab_GameMode* GM = GetWorld()->GetAuthGameMode<ALab_GameMode>())
 	{
 		GM->NotifySurvivorCaught(SurvivorPC);
+	}
+
+	const FString Name = SurvivorPS ? SurvivorPS->GetPlayerName() : TEXT("A Survivor");
+	Multicast_OnSurvivorTagged(Name);
+}
+
+void ALab_MonsterCharacter::Multicast_OnSurvivorTagged_Implementation(const FString& SurvivorName)
+{
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red,
+			FString::Printf(TEXT("Monster tagged %s!"), *SurvivorName));
 	}
 }
