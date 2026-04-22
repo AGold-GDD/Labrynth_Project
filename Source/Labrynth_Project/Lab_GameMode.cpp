@@ -13,6 +13,10 @@ ALab_GameMode::ALab_GameMode()
 	// Use our custom replicated classes
 	GameStateClass  = ALab_GameState::StaticClass();
 	PlayerStateClass = ALab_PlayerState::StaticClass();
+
+	// Seamless travel keeps all players connected when the server changes maps.
+	// Requires a Transition Map set in Project Settings → Engine → General Settings.
+	bUseSeamlessTravel = true;
 }
 
 void ALab_GameMode::PostLogin(APlayerController* NewPlayer)

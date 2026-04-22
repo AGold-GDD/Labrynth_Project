@@ -7,6 +7,7 @@ void ALab_PlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 
 	DOREPLIFETIME(ALab_PlayerState, PlayerRole);
 	DOREPLIFETIME(ALab_PlayerState, bIsCaught);
+	DOREPLIFETIME(ALab_PlayerState, DisplayName);
 }
 
 void ALab_PlayerState::SetPlayerRole(EPlayerRole NewRole)
@@ -31,4 +32,15 @@ void ALab_PlayerState::OnRep_PlayerRole()
 void ALab_PlayerState::OnRep_bIsCaught()
 {
 	OnSurvivorCaught.Broadcast();
+}
+
+void ALab_PlayerState::SetDisplayName(const FString& Name)
+{
+	DisplayName = Name;
+	OnRep_DisplayName();
+}
+
+void ALab_PlayerState::OnRep_DisplayName()
+{
+	OnDisplayNameChanged.Broadcast(DisplayName);
 }
