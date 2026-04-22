@@ -34,8 +34,9 @@ ALab_MonsterCharacter::ALab_MonsterCharacter()
 	NameplateWidget->SetupAttachment(RootComponent);
 	NameplateWidget->SetRelativeLocation(FVector(0.f, 0.f, 120.f));
 	NameplateWidget->SetWidgetClass(ULab_NameplateWidget::StaticClass());
-	NameplateWidget->SetWidgetSpace(EWidgetSpace::Screen);
-	NameplateWidget->SetDrawSize(FVector2D(200.f, 50.f));
+	NameplateWidget->SetWidgetSpace(EWidgetSpace::World);
+	NameplateWidget->SetDrawAtDesiredSize(true);
+	NameplateWidget->SetPivot(FVector2D(0.5f, 0.5f));
 }
 
 void ALab_MonsterCharacter::BeginPlay()
@@ -47,6 +48,23 @@ void ALab_MonsterCharacter::BeginPlay()
 
 	if (IsLocallyControlled())
 		NameplateWidget->SetVisibility(false);
+}
+
+void ALab_MonsterCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (!NameplateWidget->IsVisible()) return;
+
+	if (APlayerController* LocalPC = GetWorld()->GetFirstPlayerController())
+	{
+		if (LocalPC->PlayerCameraManager)
+		{
+			const FVector ToCamera = (LocalPC->PlayerCameraManager->GetCameraLocation()
+				- NameplateWidget->GetComponentLocation()).GetSafeNormal();
+			NameplateWidget->SetWorldRotation(ToCamera.Rotation());
+		}
+	}
 }
 
 void ALab_MonsterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -94,10 +112,8 @@ void ALab_MonsterCharacter::Look(const FInputActionValue& Value)
 
 void ALab_MonsterCharacter::PerformTag()
 {
-	if (!FirstPersonCamera) return;
-
-	const FVector Start = FirstPersonCamera->GetComponentLocation();
-	const FVector End   = Start + FirstPersonCamera->GetForwardVector() * TagRange;
+	const FVector Start = GetPawnViewLocation();
+	const FVector End   = Start + GetBaseAimRotation().Vector() * TagRange;
 
 	// Dev visualisation — visible only on the monster's screen
 	DrawDebugLine(GetWorld(), Start, End, FColor::Red, false, 1.5f, 0, 2.f);
@@ -110,10 +126,8 @@ void ALab_MonsterCharacter::PerformTag()
 
 void ALab_MonsterCharacter::Server_TryTag_Implementation()
 {
-	if (!FirstPersonCamera) return;
-
-	const FVector Start = FirstPersonCamera->GetComponentLocation();
-	const FVector End   = Start + FirstPersonCamera->GetForwardVector() * TagRange;
+	const FVector Start = GetPawnViewLocation();
+	const FVector End   = Start + GetBaseAimRotation().Vector() * TagRange;
 
 	FHitResult Hit;
 	FCollisionQueryParams Params;
