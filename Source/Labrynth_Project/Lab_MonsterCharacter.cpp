@@ -5,10 +5,10 @@
 #include "Lab_SurvivorCharacter.h"
 #include "Lab_NameplateWidget.h"
 #include "Camera/CameraComponent.h"
-#include "Components/SphereComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/WidgetComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "DrawDebugHelpers.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
@@ -36,11 +36,6 @@ ALab_MonsterCharacter::ALab_MonsterCharacter()
 	NameplateWidget->SetWidgetClass(ULab_NameplateWidget::StaticClass());
 	NameplateWidget->SetWidgetSpace(EWidgetSpace::Screen);
 	NameplateWidget->SetDrawSize(FVector2D(200.f, 50.f));
-
-	TagSphere = CreateDefaultSubobject<USphereComponent>(TEXT("TagSphere"));
-	TagSphere->SetupAttachment(RootComponent);
-	TagSphere->SetSphereRadius(100.f);
-	TagSphere->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
 }
 
 void ALab_MonsterCharacter::BeginPlay()
@@ -52,8 +47,6 @@ void ALab_MonsterCharacter::BeginPlay()
 
 	if (IsLocallyControlled())
 		NameplateWidget->SetVisibility(false);
-
-	TagSphere->OnComponentBeginOverlap.AddDynamic(this, &ALab_MonsterCharacter::OnTagSphereOverlap);
 }
 
 void ALab_MonsterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -77,6 +70,8 @@ void ALab_MonsterCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 			EIC->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ALab_MonsterCharacter::Move);
 		if (LookAction)
 			EIC->BindAction(LookAction, ETriggerEvent::Triggered, this, &ALab_MonsterCharacter::Look);
+		if (TagAction)
+			EIC->BindAction(TagAction, ETriggerEvent::Started, this, &ALab_MonsterCharacter::PerformTag);
 	}
 }
 
@@ -97,26 +92,49 @@ void ALab_MonsterCharacter::Look(const FInputActionValue& Value)
 	AddControllerPitchInput(Axis.Y);
 }
 
-void ALab_MonsterCharacter::OnTagSphereOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
-                                                UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
-                                                bool bFromSweep, const FHitResult& SweepResult)
+void ALab_MonsterCharacter::PerformTag()
 {
-	if (!HasAuthority()) return;
+	if (!FirstPersonCamera) return;
 
-	ALab_SurvivorCharacter* Survivor = Cast<ALab_SurvivorCharacter>(OtherActor);
+	const FVector Start = FirstPersonCamera->GetComponentLocation();
+	const FVector End   = Start + FirstPersonCamera->GetForwardVector() * TagRange;
+
+	// Dev visualisation — visible only on the monster's screen
+	DrawDebugLine(GetWorld(), Start, End, FColor::Red, false, 1.5f, 0, 2.f);
+
+	if (HasAuthority())
+		Server_TryTag_Implementation();
+	else
+		Server_TryTag();
+}
+
+void ALab_MonsterCharacter::Server_TryTag_Implementation()
+{
+	if (!FirstPersonCamera) return;
+
+	const FVector Start = FirstPersonCamera->GetComponentLocation();
+	const FVector End   = Start + FirstPersonCamera->GetForwardVector() * TagRange;
+
+	FHitResult Hit;
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+
+	if (!GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
+		return;
+
+	ALab_SurvivorCharacter* Survivor = Cast<ALab_SurvivorCharacter>(Hit.GetActor());
 	if (!Survivor) return;
 
 	APlayerController* SurvivorPC = Cast<APlayerController>(Survivor->GetController());
 	if (!SurvivorPC) return;
 
-	// Get name before NotifySurvivorCaught destroys the survivor pawn
 	ALab_PlayerState* SurvivorPS = Survivor->GetPlayerState<ALab_PlayerState>();
-	const FString Name = SurvivorPS ? SurvivorPS->GetPlayerName() : TEXT("A Survivor");
+	const FString Name = (SurvivorPS && !SurvivorPS->DisplayName.IsEmpty())
+		? SurvivorPS->DisplayName
+		: TEXT("A Survivor");
 
 	if (ALab_GameMode* GM = GetWorld()->GetAuthGameMode<ALab_GameMode>())
-	{
 		GM->NotifySurvivorCaught(SurvivorPC);
-	}
 
 	Multicast_OnSurvivorTagged(Name);
 }
