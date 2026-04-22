@@ -28,8 +28,13 @@ private:
 	TSharedPtr<SEditableTextBox> UsernameInputBox;
 	TSharedPtr<SEditableTextBox> IPInputBox;
 
+	TArray<TSharedPtr<FString>> MapOptions;
+	TSharedPtr<FString> SelectedMap;
+
 	FReply OnHostClicked();
 	FReply OnJoinClicked();
 
 	void SaveUsername() const;
+	TSharedRef<SWidget> MakeMapOptionWidget(TSharedPtr<FString> Item) const;
+	FText GetSelectedMapText() const;
 };
