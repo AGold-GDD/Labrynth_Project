@@ -31,8 +31,9 @@ ALab_SurvivorCharacter::ALab_SurvivorCharacter()
 	NameplateWidget->SetupAttachment(RootComponent);
 	NameplateWidget->SetRelativeLocation(FVector(0.f, 0.f, 120.f));
 	NameplateWidget->SetWidgetClass(ULab_NameplateWidget::StaticClass());
-	NameplateWidget->SetWidgetSpace(EWidgetSpace::Screen);
-	NameplateWidget->SetDrawSize(FVector2D(200.f, 50.f));
+	NameplateWidget->SetWidgetSpace(EWidgetSpace::World);
+	NameplateWidget->SetDrawAtDesiredSize(true);
+	NameplateWidget->SetPivot(FVector2D(0.5f, 0.5f));
 }
 
 void ALab_SurvivorCharacter::BeginPlay()
@@ -55,6 +56,23 @@ void ALab_SurvivorCharacter::BeginPlay()
 		if (ALab_PlayerState* PS = GetPlayerState<ALab_PlayerState>())
 		{
 			PS->OnSurvivorCaught.AddDynamic(this, &ALab_SurvivorCharacter::OnCaught);
+		}
+	}
+}
+
+void ALab_SurvivorCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	if (!NameplateWidget->IsVisible()) return;
+
+	if (APlayerController* LocalPC = GetWorld()->GetFirstPlayerController())
+	{
+		if (LocalPC->PlayerCameraManager)
+		{
+			const FVector ToCamera = (LocalPC->PlayerCameraManager->GetCameraLocation()
+				- NameplateWidget->GetComponentLocation()).GetSafeNormal();
+			NameplateWidget->SetWorldRotation(ToCamera.Rotation());
 		}
 	}
 }
