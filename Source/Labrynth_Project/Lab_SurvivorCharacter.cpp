@@ -26,9 +26,6 @@ ALab_SurvivorCharacter::ALab_SurvivorCharacter()
 
 	bUseControllerRotationYaw = false;
 	GetCharacterMovement()->bOrientRotationToMovement = true;
-	GetCharacterMovement()->MaxAcceleration = 800.f;
-	GetCharacterMovement()->BrakingDecelerationWalking = 800.f;
-	GetCharacterMovement()->GroundFriction = 6.f;
 
 	NameplateWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("NameplateWidget"));
 	NameplateWidget->SetupAttachment(RootComponent);
