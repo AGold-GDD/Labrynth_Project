@@ -141,6 +141,9 @@ STEP 0 — CHECK INHERITANCE BEFORE TOUCHING ANYTHING  (do this first)
 
   For each Blueprint below, open it > click "Class Settings" in the
   toolbar > look at "Parent Class" in the Details panel:
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
   BP_ThirdPersonGameMode
@@ -150,6 +153,7 @@ STEP 0 — CHECK INHERITANCE BEFORE TOUCHING ANYTHING  (do this first)
     will STOP running when you reparent to ALabrynthGameMode. You will
     need to copy any important custom logic into the BlueprintImplementable
     events (OnSurvivorJoined, OnMonsterJoined, etc.) instead.
+<<<<<<< Updated upstream
 
   BP_ThirdPersonCharacter
     Expected parent:  Character  (ACharacter)
@@ -230,6 +234,41 @@ STEP 0 — CHECK INHERITANCE BEFORE TOUCHING ANYTHING  (do this first)
   The "Is Locally Controlled" check stops all the remote copies of the
   character from trying to show a UI at the same time.
 =======
+=======
+
+  BP_ThirdPersonCharacter
+    Expected parent:  Character  (ACharacter)
+    If it already has a custom C++ parent: check whether that parent
+    already sets bReplicates — if so, you do not need to set it again.
+    If the parent overrides GetLifetimeReplicatedProps, your custom
+    replicated variables may need to call Super:: — but this is handled
+    automatically in Blueprint, so it is usually fine.
+
+  BP_NPC
+    Expected parent:  Character  (ACharacter)  or  Pawn  (APawn)
+    If it has a custom parent with AI controller logic baked in:
+    clearing "AI Controller Class" in Class Defaults may not be enough —
+    the parent may re-set it. In that case, also override BeginPlay and
+    call [Get Controller] > [Cast To AIController] > [Destroy Actor] to
+    forcibly remove the AI controller when a player possesses the pawn.
+
+  BP_ThirdPersonPlayerController
+    Expected parent:  Player Controller  (APlayerController)
+    If it has existing multiplayer-related logic (OnRep_, RPC calls):
+    check whether any of them conflict with the new C++ GameState or
+    PlayerState. Specifically look for variables named "Role" — UE5's
+    base APlayerState already has a deprecated Role property, and if
+    your controller or character also has one it will shadow the
+    EPlayerRole enum we added to ALabrynthPlayerState.
+
+  WHAT TO DO IF YOU FIND A CONFLICT:
+    - Write down what the existing parent does
+    - Reparent to ALabrynthGameMode / keep ACharacter as normal
+    - Move any conflicting custom logic into the BlueprintImplementable
+      event overrides provided by the C++ classes
+    - Come back to this guide and continue from Step 1
+
+>>>>>>> Stashed changes
 --------------------------------------------------------------------------------
 STEP 1 — Reparent BP_ThirdPersonGameMode to ALabrynthGameMode
 --------------------------------------------------------------------------------
@@ -256,6 +295,7 @@ STEP 1 — Reparent BP_ThirdPersonGameMode to ALabrynthGameMode
   The C++ PostLogin now handles ALL spawning and role assignment
   automatically. You do not need any PostLogin logic in the Blueprint
   unless you want to add extra Blueprint-side reactions (see Step 2).
+<<<<<<< Updated upstream
 >>>>>>> Stashed changes
 
   Compile and Save.
@@ -398,11 +438,14 @@ STEP 3 — Enable replication on BP_ThirdPersonCharacter
     For variables that need to trigger client-side logic when they change,
     use "RepNotify" instead — this auto-creates an OnRep_ function you
     can add Blueprint logic to.
+=======
+>>>>>>> Stashed changes
 
   Compile and Save.
 
 
 --------------------------------------------------------------------------------
+<<<<<<< Updated upstream
 STEP 4 — Make BP_NPC player-possessable
 --------------------------------------------------------------------------------
 
@@ -598,6 +641,124 @@ STEP 5 — Add Spawn Points to the maze level
 
   Save the level.
 
+=======
+STEP 2 — (Optional) Blueprint reactions in BP_ThirdPersonGameMode
+--------------------------------------------------------------------------------
+
+  The C++ GameMode fires these events that you can react to in Blueprint.
+  In BP_ThirdPersonGameMode's Event Graph, right-click and search each
+  event name to add an override node:
+
+  "On Survivor Joined"
+    Parameters: SurvivorController (Player Controller), SurvivorIndex (int)
+    Use for: play a "player joined" sound, update a lobby counter widget, etc.
+
+  "On Monster Joined"
+    Parameters: MonsterController (Player Controller)
+    Use for: show a "MONSTER HAS ENTERED" banner, etc.
+
+  "On All Players Ready"
+    No parameters.
+    Use for: start a countdown timer, hide the lobby UI, unlock movement, etc.
+
+  You do NOT have to implement any of these — the game works without them.
+  They are hooks for adding polish.
+
+
+--------------------------------------------------------------------------------
+STEP 3 — Enable replication on BP_ThirdPersonCharacter
+--------------------------------------------------------------------------------
+
+  Open:  Content/ThirdPerson/Blueprints/BP_ThirdPersonCharacter
+
+  Class Defaults panel:
+    Replicates         = checked  (true)
+    Replicate Movement = checked  (true)
+
+  For any custom variables (health, caught state, etc.):
+    Select variable in My Blueprint panel
+    Details panel > Replication > set to "Replicated"
+    For variables that need to trigger client-side logic when they change,
+    use "RepNotify" instead — this auto-creates an OnRep_ function you
+    can add Blueprint logic to.
+
+  Compile and Save.
+
+
+--------------------------------------------------------------------------------
+STEP 4 — Make BP_NPC player-possessable
+--------------------------------------------------------------------------------
+
+  Open:  Content/BP_NPC
+         (it lives in the Content root, NOT in Characters/MonsterNPC —
+          that subfolder only contains a Walking animation)
+
+  Class Defaults panel:
+    Replicates              = checked  (true)
+    Replicate Movement      = checked  (true)
+    Auto Possess Player     = Disabled
+    AI Controller Class     = None    ← clear this field
+
+  Components panel — add a 3rd-person camera:
+
+    1. Click "+ Add" > search "Spring Arm" > add it
+       Parent it to the Capsule Component in the component hierarchy.
+       Details:
+         Target Arm Length             = 400
+         Socket Offset Z               = 80
+         Use Pawn Control Rotation     = checked
+
+    2. Click "+ Add" > search "Camera" > add it
+       Parent it to the Spring Arm.
+       Details:
+         Use Pawn Control Rotation     = unchecked  (spring arm handles this)
+
+  Event Graph — enable input when possessed:
+
+    Add Event BeginPlay node (right-click > search "Event BeginPlay")
+
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │ Event BeginPlay                                                      │
+    │   └─> [Branch]                                                      │
+    │         Condition: [Is Locally Controlled]                          │
+    │         True  └─> [Enable Input]                                    │
+    │                     Player Controller: [Get Player Controller (0)]  │
+    │         False └─> (nothing)                                         │
+    └──────────────────────────────────────────────────────────────────────┘
+
+    Node locations (right-click to search each):
+      "Is Locally Controlled"   Pawn category
+      "Branch"                  Flow Control
+      "Enable Input"            Input category
+      "Get Player Controller"   Game category  (index = 0)
+
+  Compile and Save.
+
+
+--------------------------------------------------------------------------------
+STEP 5 — Add Spawn Points to the maze level
+--------------------------------------------------------------------------------
+
+  Open:  Content/ThirdPerson/Lvl_ThirdPerson.umap
+
+  Place Actors panel (Shift+1):
+    Search "Player Start" — drag 3 into the level.
+
+  Survivor spawn 1:
+    Place near one maze entrance.
+    Select it > Details > Actor > Tags > click + > type:  SurvivorSpawn
+
+  Survivor spawn 2:
+    Place a short distance from spawn 1 (so players don't overlap).
+    Select it > Details > Actor > Tags > click + > type:  SurvivorSpawn
+
+  Monster spawn:
+    Place it at the far end of the maze, away from survivors.
+    Select it > Details > Actor > Tags > click + > type:  MonsterSpawn
+
+  Save the level.
+
+>>>>>>> Stashed changes
   NOTE: The C++ GameMode finds these by tag using
   UGameplayStatics::GetAllActorsWithTag. The tag strings must match
   exactly (case-sensitive) what you set in Class Defaults:
@@ -929,6 +1090,7 @@ TEST F — Stress / edge case tests
 ================================================================================
 
   ALabrynthGameMode   (LabrynthGameMode.h)
+<<<<<<< Updated upstream
   ─────────────────────────────────────────────────────────────────────────────
   Properties (set in BP_ThirdPersonGameMode Class Defaults):
     SurvivorClass        TSubclassOf<APawn>   pawn for survivor players
@@ -1010,6 +1172,73 @@ TEST F — Stress / edge case tests
 =======
   On disk:
   ─────────────────────────────────────────────────────────────────────────────
+=======
+  ─────────────────────────────────────────────────────────────────────────────
+  Properties (set in BP_ThirdPersonGameMode Class Defaults):
+    SurvivorClass        TSubclassOf<APawn>   pawn for survivor players
+    MonsterClass         TSubclassOf<APawn>   pawn for the monster player
+    SurvivorSpawnTag     FName                tag on level's survivor spawns
+    MonsterSpawnTag      FName                tag on level's monster spawn
+
+  Blueprint Callable (server only):
+    EndGame(bSurvivorsWin)   call to end the match and set the game phase
+
+  Blueprint Pure (any):
+    GetRoleForController(Controller)   returns EPlayerRole for a controller
+
+  Blueprint Implementable Events (override in BP_ThirdPersonGameMode):
+    OnSurvivorJoined(Controller, Index)
+    OnMonsterJoined(Controller)
+    OnAllPlayersReady()
+
+  ─────────────────────────────────────────────────────────────────────────────
+  ALabrynthPlayerState   (LabrynthPlayerState.h)
+  ─────────────────────────────────────────────────────────────────────────────
+  Replicated property:
+    Role    EPlayerRole   automatically synced to all clients
+
+  Blueprint Pure:
+    IsMonster()    returns bool
+    IsSurvivor()   returns bool
+
+  ─────────────────────────────────────────────────────────────────────────────
+  ALabrynthGameState   (LabrynthGameState.h)
+  ─────────────────────────────────────────────────────────────────────────────
+  Replicated properties:
+    ConnectedPlayerCount   int32        how many players have joined
+    GamePhase              EGamePhase   current phase of the match
+
+  Blueprint Callable (server only):
+    SetGamePhase(NewPhase)
+
+  Blueprint Implementable Events (override in a GameState BP child):
+    OnGamePhaseChanged(NewPhase)     fires on ALL clients when phase changes
+    OnConnectedCountChanged(Count)   fires on all clients when count changes
+
+
+================================================================================
+  ENUMS REFERENCE
+================================================================================
+
+  EPlayerRole         (use via LabrynthPlayerState or GetRoleForController)
+    Unassigned
+    Survivor
+    Monster
+
+  EGamePhase          (use via LabrynthGameState)
+    WaitingForPlayers
+    InProgress
+    SurvivorsWin
+    MonsterWins
+
+
+================================================================================
+  FILE LOCATIONS SUMMARY
+================================================================================
+
+  On disk:
+  ─────────────────────────────────────────────────────────────────────────────
+>>>>>>> Stashed changes
   C++ source (already written):
     Source/Labrynth_Project/Labrynth_Project.Build.cs
     Source/Labrynth_Project/Labrynth_Project.h
@@ -1034,6 +1263,9 @@ TEST F — Stress / edge case tests
     Content/BP_NPC.uasset                       (lives in Content ROOT, not MonsterNPC/)
     Content/MultiplayerStuff/WBP_Menu.uasset    (update existing, don't recreate)
     Content/ThirdPerson/Lvl_ThirdPerson.umap    (add 3 Player Start actors)
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
   Lab_GameInstance   Persists across level loads. Handles Host / Join / Disconnect.
