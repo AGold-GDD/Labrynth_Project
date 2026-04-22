@@ -2,16 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameStateBase.h"
+#include "Lab_Types.h"
 #include "LabrynthGameState.generated.h"
-
-UENUM(BlueprintType)
-enum class EGamePhase : uint8
-{
-	WaitingForPlayers  UMETA(DisplayName = "Waiting For Players"),
-	InProgress         UMETA(DisplayName = "In Progress"),
-	SurvivorsWin       UMETA(DisplayName = "Survivors Win"),
-	MonsterWins        UMETA(DisplayName = "Monster Wins")
-};
 
 UCLASS()
 class LABRYNTH_PROJECT_API ALabrynthGameState : public AGameStateBase

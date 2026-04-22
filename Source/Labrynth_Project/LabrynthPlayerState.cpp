@@ -6,13 +6,13 @@ void ALabrynthPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	// Replicate Role to every connected client
-	DOREPLIFETIME(ALabrynthPlayerState, Role);
+	DOREPLIFETIME(ALabrynthPlayerState, PlayerRole);
 }
 
 void ALabrynthPlayerState::SetRole(EPlayerRole NewRole)
 {
 	// Authority-only — GameMode calls this from PostLogin
-	Role = NewRole;
+	PlayerRole = NewRole;
 }
 
 void ALabrynthPlayerState::OnRep_Role()

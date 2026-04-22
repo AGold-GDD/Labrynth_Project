@@ -121,14 +121,14 @@ void ALabrynthGameMode::EndGame(bool bSurvivorsWin)
 
 EPlayerRole ALabrynthGameMode::GetRoleForController(APlayerController* Controller) const
 {
-	if (!Controller) return EPlayerRole::Unassigned;
+	if (!Controller) return EPlayerRole::None;
 
 	if (const ALabrynthPlayerState* PS = Controller->GetPlayerState<ALabrynthPlayerState>())
 	{
-		return PS->Role;
+		return PS->PlayerRole;
 	}
 
-	return EPlayerRole::Unassigned;
+	return EPlayerRole::None;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

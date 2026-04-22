@@ -88,17 +88,16 @@ TSharedRef<SWidget> ULab_MenuWidget::RebuildWidget()
 				[
 					SNew(SComboBox<TSharedPtr<FString>>)
 					.OptionsSource(&MapOptions)
-					.OnSelectionChanged_Lambda([this](TSharedPtr<FString> Item, ESelectInfo::Type)
+					.OnSelectionChanged_Lambda([this](TSharedPtr<FString> Item, ESelectInfo::Type /*SelectInfo*/)
 					{
 						if (Item.IsValid())
 							SelectedMap = Item;
 					})
-					.OnGenerateWidget(this, &ULab_MenuWidget::MakeMapOptionWidget)
+					.OnGenerateWidget_UObject(this, &ULab_MenuWidget::MakeMapOptionWidget)
 					.InitiallySelectedItem(SelectedMap)
 					[
 						SNew(STextBlock)
-						.Text(TAttribute<FText>::Create(
-							TAttribute<FText>::FGetter::CreateUObject(this, &ULab_MenuWidget::GetSelectedMapText)))
+						.Text_UObject(this, &ULab_MenuWidget::GetSelectedMapText)
 						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 14))
 					]
 				]
@@ -110,7 +109,7 @@ TSharedRef<SWidget> ULab_MenuWidget::RebuildWidget()
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.OnClicked(FOnClicked::CreateUObject(this, &ULab_MenuWidget::OnHostClicked))
+					.OnClicked_UObject(this, &ULab_MenuWidget::OnHostClicked)
 					[
 						SNew(STextBlock)
 						.Text(FText::FromString(TEXT("HOST GAME")))
@@ -134,7 +133,7 @@ TSharedRef<SWidget> ULab_MenuWidget::RebuildWidget()
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
-					.OnClicked(FOnClicked::CreateUObject(this, &ULab_MenuWidget::OnJoinClicked))
+					.OnClicked_UObject(this, &ULab_MenuWidget::OnJoinClicked)
 					[
 						SNew(STextBlock)
 						.Text(FText::FromString(TEXT("JOIN GAME")))
