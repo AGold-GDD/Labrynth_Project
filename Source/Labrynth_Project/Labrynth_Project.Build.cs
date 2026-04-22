@@ -15,6 +15,7 @@ public class Labrynth_Project : ModuleRules
 			"EnhancedInput",
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 			"UMG",
 			"OnlineSubsystem",
 			"OnlineSubsystemUtils",
@@ -30,12 +31,17 @@ public class Labrynth_Project : ModuleRules
 =======
 =======
 >>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
 			"OnlineSubsystem",
 			"OnlineSubsystemUtils"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
