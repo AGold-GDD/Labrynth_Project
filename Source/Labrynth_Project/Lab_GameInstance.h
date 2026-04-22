@@ -7,6 +7,18 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnHostResult, bool, bWasSuccessful);
 
+USTRUCT(BlueprintType)
+struct FKnownHost
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	FString Name;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	FString IP;
+};
+
 /**
  * ULab_GameInstance
  *
@@ -77,6 +89,13 @@ public:
 	// Add at least one entry to MapPool in BP_Lab_GameInstance's Class Defaults.
 	UFUNCTION(BlueprintCallable, Category = "Multiplayer")
 	void HostGameFromPool(int32 MaxPlayers = 3);
+
+	// ── Known hosts ──────────────────────────────────────────────────────────────
+
+	// Preset IPs shown in the quick-connect dropdown in the menu.
+	// Add entries in BP_Lab_GameInstance's Class Defaults.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Multiplayer")
+	TArray<FKnownHost> KnownHosts;
 
 	// ── Username ─────────────────────────────────────────────────────────────────
 

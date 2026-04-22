@@ -31,10 +31,15 @@ private:
 	TArray<TSharedPtr<FString>> MapOptions;
 	TSharedPtr<FString> SelectedMap;
 
+	TArray<TSharedPtr<FString>> HostOptions;
+	TSharedPtr<FString> SelectedHost;
+
 	FReply OnHostClicked();
 	FReply OnJoinClicked();
 
 	void SaveUsername() const;
 	TSharedRef<SWidget> MakeMapOptionWidget(TSharedPtr<FString> Item) const;
 	FText GetSelectedMapText() const;
+	TSharedRef<SWidget> MakeHostOptionWidget(TSharedPtr<FString> Item) const;
+	FText GetSelectedHostText() const;
 };

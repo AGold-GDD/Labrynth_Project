@@ -10,26 +10,32 @@
 
 TSharedRef<SWidget> ULab_MenuWidget::RebuildWidget()
 {
-	// Populate map options from the GameInstance's MapPool
+	// Populate map options from MapPool
 	MapOptions.Empty();
 	if (ULab_GameInstance* GI = GetGameInstance<ULab_GameInstance>())
 	{
 		for (const FString& Path : GI->MapPool)
 		{
-			// Display just the last segment of the path as the map name
 			FString Name = Path;
 			int32 SlashIdx;
 			if (Path.FindLastChar(TEXT('/'), SlashIdx))
 				Name = Path.RightChop(SlashIdx + 1);
-
 			MapOptions.Add(MakeShared<FString>(Name));
 		}
 	}
-
 	if (MapOptions.IsEmpty())
 		MapOptions.Add(MakeShared<FString>(TEXT("(no maps in pool)")));
-
 	SelectedMap = MapOptions[0];
+
+	// Populate known hosts — first entry is the manual-type placeholder
+	HostOptions.Empty();
+	HostOptions.Add(MakeShared<FString>(TEXT("— type IP below —")));
+	if (ULab_GameInstance* GI = GetGameInstance<ULab_GameInstance>())
+	{
+		for (const FKnownHost& Host : GI->KnownHosts)
+			HostOptions.Add(MakeShared<FString>(FString::Printf(TEXT("%s  %s"), *Host.Name, *Host.IP)));
+	}
+	SelectedHost = HostOptions[0];
 
 	return SNew(SBox)
 		.HAlign(HAlign_Center)
@@ -88,10 +94,9 @@ TSharedRef<SWidget> ULab_MenuWidget::RebuildWidget()
 				[
 					SNew(SComboBox<TSharedPtr<FString>>)
 					.OptionsSource(&MapOptions)
-					.OnSelectionChanged_Lambda([this](TSharedPtr<FString> Item, ESelectInfo::Type /*SelectInfo*/)
+					.OnSelectionChanged_Lambda([this](TSharedPtr<FString> Item, ESelectInfo::Type)
 					{
-						if (Item.IsValid())
-							SelectedMap = Item;
+						if (Item.IsValid()) SelectedMap = Item;
 					})
 					.OnGenerateWidget_UObject(this, &ULab_MenuWidget::MakeMapOptionWidget)
 					.InitiallySelectedItem(SelectedMap)
@@ -105,7 +110,7 @@ TSharedRef<SWidget> ULab_MenuWidget::RebuildWidget()
 				// HOST button
 				+ SVerticalBox::Slot()
 				.AutoHeight()
-				.Padding(0.f, 0.f, 0.f, 12.f)
+				.Padding(0.f, 0.f, 0.f, 24.f)
 				[
 					SNew(SButton)
 					.HAlign(HAlign_Center)
@@ -114,6 +119,50 @@ TSharedRef<SWidget> ULab_MenuWidget::RebuildWidget()
 						SNew(STextBlock)
 						.Text(FText::FromString(TEXT("HOST GAME")))
 						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 16))
+					]
+				]
+
+				// Quick connect label
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.f, 0.f, 0.f, 4.f)
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(TEXT("Quick Connect")))
+					.Font(FCoreStyle::GetDefaultFontStyle("Regular", 12))
+				]
+
+				// Known hosts dropdown
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.f, 0.f, 0.f, 8.f)
+				[
+					SNew(SComboBox<TSharedPtr<FString>>)
+					.OptionsSource(&HostOptions)
+					.OnSelectionChanged_Lambda([this](TSharedPtr<FString> Item, ESelectInfo::Type)
+					{
+						if (!Item.IsValid() || !IPInputBox.IsValid()) return;
+						// Parse the IP out of "Name  IP" — skip the placeholder entry
+						FString Entry = *Item;
+						int32 LastSpace = INDEX_NONE;
+						for (int32 i = Entry.Len() - 1; i >= 0; --i)
+						{
+							if (Entry[i] == TEXT(' '))
+							{
+								LastSpace = i;
+								break;
+							}
+						}
+						if (LastSpace != INDEX_NONE)
+							IPInputBox->SetText(FText::FromString(Entry.RightChop(LastSpace + 1)));
+						SelectedHost = Item;
+					})
+					.OnGenerateWidget_UObject(this, &ULab_MenuWidget::MakeHostOptionWidget)
+					.InitiallySelectedItem(SelectedHost)
+					[
+						SNew(STextBlock)
+						.Text_UObject(this, &ULab_MenuWidget::GetSelectedHostText)
+						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 14))
 					]
 				]
 
@@ -156,6 +205,18 @@ FText ULab_MenuWidget::GetSelectedMapText() const
 	return FText::FromString(SelectedMap.IsValid() ? *SelectedMap : TEXT(""));
 }
 
+TSharedRef<SWidget> ULab_MenuWidget::MakeHostOptionWidget(TSharedPtr<FString> Item) const
+{
+	return SNew(STextBlock)
+		.Text(FText::FromString(Item.IsValid() ? *Item : TEXT("")))
+		.Font(FCoreStyle::GetDefaultFontStyle("Regular", 14));
+}
+
+FText ULab_MenuWidget::GetSelectedHostText() const
+{
+	return FText::FromString(SelectedHost.IsValid() ? *SelectedHost : TEXT(""));
+}
+
 void ULab_MenuWidget::SaveUsername() const
 {
 	if (!UsernameInputBox.IsValid()) return;
@@ -175,7 +236,6 @@ FReply ULab_MenuWidget::OnHostClicked()
 	ULab_GameInstance* GI = GetGameInstance<ULab_GameInstance>();
 	if (!GI) return FReply::Handled();
 
-	// Resolve the display name back to a full map path from the pool
 	FString MapPath;
 	for (int32 i = 0; i < GI->MapPool.Num(); ++i)
 	{
