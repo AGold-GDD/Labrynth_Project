@@ -29,6 +29,26 @@ TSharedRef<SWidget> ULab_MenuWidget::RebuildWidget()
 					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 28))
 				]
 
+				// Username label
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.f, 0.f, 0.f, 4.f)
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(TEXT("Username")))
+					.Font(FCoreStyle::GetDefaultFontStyle("Regular", 12))
+				]
+
+				// Username input
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.f, 0.f, 0.f, 24.f)
+				[
+					SAssignNew(UsernameInputBox, SEditableTextBox)
+					.HintText(FText::FromString(TEXT("Enter your name...")))
+					.Font(FCoreStyle::GetDefaultFontStyle("Regular", 14))
+				]
+
 				// HOST button
 				+ SVerticalBox::Slot()
 				.AutoHeight()
@@ -71,12 +91,25 @@ TSharedRef<SWidget> ULab_MenuWidget::RebuildWidget()
 		];
 }
 
+void ULab_MenuWidget::SaveUsername() const
+{
+	if (!UsernameInputBox.IsValid()) return;
+
+	FString Name = UsernameInputBox->GetText().ToString().TrimStartAndEnd();
+	if (Name.IsEmpty()) Name = TEXT("Player");
+
+	if (ULab_GameInstance* GI = GetGameInstance<ULab_GameInstance>())
+		GI->SetLocalUsername(Name);
+}
+
 FReply ULab_MenuWidget::OnHostClicked()
 {
+	SaveUsername();
+
 	if (ULab_GameInstance* GI = GetGameInstance<ULab_GameInstance>())
 	{
 		RemoveFromParent();
-		GI->HostGame(TEXT("/Game/MultiplayerStuff/lvl1"), 3);
+		GI->HostGameFromPool(3);
 	}
 	return FReply::Handled();
 }
@@ -87,6 +120,8 @@ FReply ULab_MenuWidget::OnJoinClicked()
 
 	const FString IP = IPInputBox->GetText().ToString().TrimStartAndEnd();
 	if (IP.IsEmpty()) return FReply::Handled();
+
+	SaveUsername();
 
 	if (ULab_GameInstance* GI = GetGameInstance<ULab_GameInstance>())
 	{

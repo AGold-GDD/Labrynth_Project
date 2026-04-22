@@ -123,6 +123,30 @@ void ULab_GameInstance::DestroyCurrentSession()
 	}
 }
 
+void ULab_GameInstance::HostGameFromPool(int32 MaxPlayers)
+{
+	if (MapPool.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning,
+		       TEXT("HostGameFromPool: MapPool is empty. "
+		            "Add map paths to BP_Lab_GameInstance's MapPool in Class Defaults."));
+		return;
+	}
+
+	const int32 Index = FMath::RandRange(0, MapPool.Num() - 1);
+	HostGame(MapPool[Index], MaxPlayers);
+}
+
+void ULab_GameInstance::SetLocalUsername(const FString& Name)
+{
+	LocalUsername = Name;
+}
+
+FString ULab_GameInstance::GetLocalUsername() const
+{
+	return LocalUsername;
+}
+
 FString ULab_GameInstance::GetLocalIPAddress() const
 {
 	ISocketSubsystem* SocketSS = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);

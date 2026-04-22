@@ -6,6 +6,7 @@
 
 class USpringArmComponent;
 class UCameraComponent;
+class UWidgetComponent;
 class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
@@ -39,6 +40,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	UCameraComponent* FollowCamera;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
+	UWidgetComponent* NameplateWidget;
 
 	// Assign these in BP_SurvivorCharacter Class Defaults → Input section
 	UPROPERTY(EditDefaultsOnly, Category = "Input")

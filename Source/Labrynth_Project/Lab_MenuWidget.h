@@ -25,8 +25,11 @@ protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 
 private:
+	TSharedPtr<SEditableTextBox> UsernameInputBox;
 	TSharedPtr<SEditableTextBox> IPInputBox;
 
 	FReply OnHostClicked();
 	FReply OnJoinClicked();
+
+	void SaveUsername() const;
 };

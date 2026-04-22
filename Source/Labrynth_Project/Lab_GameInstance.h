@@ -66,6 +66,33 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Multiplayer")
 	void DestroyCurrentSession();
 
+	// ── Random map pool ──────────────────────────────────────────────────────────
+
+	// Fill this in BP_Lab_GameInstance's Class Defaults with map paths to randomly
+	// pick from. Example: "/Game/MultiplayerStuff/lvl1"
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Multiplayer")
+	TArray<FString> MapPool;
+
+	// Picks a random map from MapPool and calls HostGame with it.
+	// Add at least one entry to MapPool in BP_Lab_GameInstance's Class Defaults.
+	UFUNCTION(BlueprintCallable, Category = "Multiplayer")
+	void HostGameFromPool(int32 MaxPlayers = 3);
+
+	// ── Username ─────────────────────────────────────────────────────────────────
+
+	// The name this local player typed in the menu. Persists across level loads.
+	// Stored in GameInstance so it survives seamless travel to the game map.
+	UPROPERTY(BlueprintReadOnly, Category = "Player")
+	FString LocalUsername;
+
+	// Called by WBP_Menu when the player confirms their name. Already called
+	// automatically when they click HOST or JOIN — no manual wiring needed.
+	UFUNCTION(BlueprintCallable, Category = "Player")
+	void SetLocalUsername(const FString& Name);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Player")
+	FString GetLocalUsername() const;
+
 private:
 	IOnlineSessionPtr SessionInterface;
 	FString PendingTravelMap;

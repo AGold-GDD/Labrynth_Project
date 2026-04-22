@@ -1,9 +1,11 @@
 #include "Lab_SurvivorCharacter.h"
 #include "Lab_PlayerState.h"
 #include "Lab_PlayerController.h"
+#include "Lab_NameplateWidget.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Components/WidgetComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
@@ -24,11 +26,26 @@ ALab_SurvivorCharacter::ALab_SurvivorCharacter()
 
 	bUseControllerRotationYaw = false;
 	GetCharacterMovement()->bOrientRotationToMovement = true;
+
+	NameplateWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("NameplateWidget"));
+	NameplateWidget->SetupAttachment(RootComponent);
+	NameplateWidget->SetRelativeLocation(FVector(0.f, 0.f, 120.f));
+	NameplateWidget->SetWidgetClass(ULab_NameplateWidget::StaticClass());
+	NameplateWidget->SetWidgetSpace(EWidgetSpace::Screen);
+	NameplateWidget->SetDrawSize(FVector2D(200.f, 50.f));
 }
 
 void ALab_SurvivorCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Wire the nameplate widget to this character so it knows which PlayerState to read
+	if (ULab_NameplateWidget* NW = Cast<ULab_NameplateWidget>(NameplateWidget->GetUserWidgetObject()))
+		NW->SetOwningCharacter(this);
+
+	// Hide your own nameplate — you don't need to see your name floating above yourself
+	if (IsLocallyControlled())
+		NameplateWidget->SetVisibility(false);
 
 	// PlayerState is available by BeginPlay on the server and listen server client.
 	// Remote clients receive it shortly after via replication — binding here is fine

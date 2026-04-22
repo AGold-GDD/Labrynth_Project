@@ -22,6 +22,8 @@ class LABRYNTH_PROJECT_API ALab_PlayerController : public APlayerController
 	GENERATED_BODY()
 
 public:
+	virtual void BeginPlay() override;
+
 	// Switch input to UI-only mode: shows the cursor, enables widget clicks,
 	// disables WASD/look input. Call this when showing a menu or pause screen.
 	UFUNCTION(BlueprintCallable, Category = "UI")
@@ -41,4 +43,10 @@ public:
 	// Use to guard client-only operations (showing UI, playing local sounds, etc.)
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Player")
 	bool IsLocalController_BP() const;
+
+private:
+	// Sends the local username to the server so it can write to PlayerState.
+	// Called automatically in BeginPlay — no Blueprint wiring needed.
+	UFUNCTION(Server, Reliable)
+	void Server_SetDisplayName(const FString& Name);
 };

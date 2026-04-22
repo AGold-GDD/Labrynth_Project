@@ -6,6 +6,7 @@
 
 class UCameraComponent;
 class USphereComponent;
+class UWidgetComponent;
 class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
@@ -38,6 +39,9 @@ protected:
 	// Eye-level first-person camera — no spring arm
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera")
 	UCameraComponent* FirstPersonCamera;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
+	UWidgetComponent* NameplateWidget;
 
 	// Catching range — overlapping a survivor calls NotifySurvivorCaught on the server
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Tagging")

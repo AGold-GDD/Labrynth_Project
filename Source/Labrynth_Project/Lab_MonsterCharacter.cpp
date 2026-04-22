@@ -3,9 +3,11 @@
 #include "Lab_PlayerController.h"
 #include "Lab_PlayerState.h"
 #include "Lab_SurvivorCharacter.h"
+#include "Lab_NameplateWidget.h"
 #include "Camera/CameraComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/WidgetComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -28,6 +30,13 @@ ALab_MonsterCharacter::ALab_MonsterCharacter()
 
 	GetMesh()->SetOwnerNoSee(true);
 
+	NameplateWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("NameplateWidget"));
+	NameplateWidget->SetupAttachment(RootComponent);
+	NameplateWidget->SetRelativeLocation(FVector(0.f, 0.f, 120.f));
+	NameplateWidget->SetWidgetClass(ULab_NameplateWidget::StaticClass());
+	NameplateWidget->SetWidgetSpace(EWidgetSpace::Screen);
+	NameplateWidget->SetDrawSize(FVector2D(200.f, 50.f));
+
 	TagSphere = CreateDefaultSubobject<USphereComponent>(TEXT("TagSphere"));
 	TagSphere->SetupAttachment(RootComponent);
 	TagSphere->SetSphereRadius(100.f);
@@ -37,6 +46,12 @@ ALab_MonsterCharacter::ALab_MonsterCharacter()
 void ALab_MonsterCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (ULab_NameplateWidget* NW = Cast<ULab_NameplateWidget>(NameplateWidget->GetUserWidgetObject()))
+		NW->SetOwningCharacter(this);
+
+	if (IsLocallyControlled())
+		NameplateWidget->SetVisibility(false);
 
 	TagSphere->OnComponentBeginOverlap.AddDynamic(this, &ALab_MonsterCharacter::OnTagSphereOverlap);
 }
