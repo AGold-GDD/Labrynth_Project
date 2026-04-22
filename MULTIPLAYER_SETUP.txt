@@ -1,4 +1,5 @@
 ================================================================================
+<<<<<<< Updated upstream
   LABRYNTH — MULTIPLAYER SETUP
   3 Players: 2 Survivors + 1 Monster
 ================================================================================
@@ -39,8 +40,150 @@
   If the build fails, open View > Output in Visual Studio and read the first
   red error line. Don't try to fix multiple errors at once — fix the first,
   rebuild, repeat.
+=======
+  LABRYNTH PROJECT — ONLINE MULTIPLAYER SETUP GUIDE
+  3 Players: 2 Survivors + 1 Monster Controller
+  Engine: Unreal Engine 5.6  |  C++ + Blueprint hybrid
+================================================================================
+
+  PATH NOTE:
+  Content/ on disk  =  /Game/ inside Unreal Editor's Content Browser.
+  This guide uses Content/... when telling you where things are on disk,
+  and /Game/... when a config or node needs an asset reference string.
+
+================================================================================
+  WHAT WAS ALREADY DONE FOR YOU  (committed to this repo)
+================================================================================
+
+  Config/DefaultEngine.ini
+    - Online Subsystem NULL enabled (LAN / direct-IP)
+    - bUseSplitscreen = False
+    - Default startup map → Lvl_ThirdPerson (temporary — swap to Lobby
+      once you create Content/ThirdPerson/Maps/Lobby.umap, see STEP 6)
+    - GlobalDefaultServerGameMode set
+    - Network bandwidth tuned
+    - Duplicate/conflicting [OnlineSubsystem] section removed (had a
+      typo "DeafaultPlatformService" from a previous attempt)
+
+  Config/DefaultGame.ini
+    - MaxPlayers = 3
+
+  Labrynth_Project.uproject
+    - C++ module "Labrynth_Project" registered
+
+  Source/Labrynth_Project/
+    - Labrynth_Project.Build.cs      module build rules
+    - Labrynth_Project.h / .cpp      module entry point
+    - LabrynthGameMode.h / .cpp      server-side spawn + role logic
+    - LabrynthPlayerState.h / .cpp   replicated EPlayerRole per player
+    - LabrynthGameState.h / .cpp     replicated game phase + player count
+
+  NOTE on Online Subsystem:
+    Your .uproject already has OnlineSubsystemSteam enabled.
+    DefaultEngine.ini currently uses NULL (LAN/IP) for easy local testing.
+    To switch to Steam: change DefaultPlatformService=NULL to =Steam
+    in Config/DefaultEngine.ini and make sure you have the Steamworks SDK.
 
 
+================================================================================
+  PART 1 — COMPILE THE C++ CODE  (do this first)
+================================================================================
+
+  1. Close Unreal Editor if it is open.
+
+  2. Right-click Labrynth_Project.uproject in your file manager.
+     Select "Generate Visual Studio project files"  (or Rider project files).
+
+  3. Open the generated .sln (Visual Studio) or .uproject (Rider).
+
+  4. Build the project:
+       Visual Studio: Build > Build Solution  (or Ctrl+Shift+B)
+       Rider:         Build > Build Project
+       Terminal:      UnrealBuildTool Labrynth_Project Development Win64
+
+  5. Once the build succeeds, open Unreal Editor by double-clicking
+     Labrynth_Project.uproject.
+
+  The new classes will now appear in the editor:
+    ALabrynthGameMode
+    ALabrynthPlayerState
+    ALabrynthGameState
+    EPlayerRole   (enum)
+    EGamePhase    (enum)
+
+
+================================================================================
+  PART 2 — BLUEPRINT SETUP  (done inside Unreal Editor after compiling)
+================================================================================
+
+  FILES TO CREATE:
+    Content/ThirdPerson/Maps/Lobby.umap           (new level)
+
+  EXISTING MULTIPLAYER FILE — UPDATE INSTEAD OF RECREATE:
+    Content/MultiplayerStuff/WBP_Menu.uasset      (already exists from a
+      previous multiplayer attempt — update this one rather than making
+      WBP_MainMenu from scratch. See STEP 7.)
+
+  FILES TO MODIFY:
+    Content/ThirdPerson/Blueprints/BP_ThirdPersonGameMode.uasset
+    Content/ThirdPerson/Blueprints/BP_ThirdPersonCharacter.uasset
+    Content/BP_NPC.uasset
+    Content/ThirdPerson/Lvl_ThirdPerson.umap      (add spawn points)
+
+
+--------------------------------------------------------------------------------
+STEP 0 — CHECK INHERITANCE BEFORE TOUCHING ANYTHING  (do this first)
+--------------------------------------------------------------------------------
+
+  Because .uasset files are binary I cannot read the actual parent classes
+  without the editor open. You mentioned there were inheritance conflicts
+  before — check these FIRST before reparenting anything.
+
+  For each Blueprint below, open it > click "Class Settings" in the
+  toolbar > look at "Parent Class" in the Details panel:
+>>>>>>> Stashed changes
+
+  BP_ThirdPersonGameMode
+    Expected parent:  Game Mode Base  (AGameModeBase)
+    If it is already a custom parent:  write it down before changing it.
+    If it has a custom parent with its own PostLogin logic, that logic
+    will STOP running when you reparent to ALabrynthGameMode. You will
+    need to copy any important custom logic into the BlueprintImplementable
+    events (OnSurvivorJoined, OnMonsterJoined, etc.) instead.
+
+  BP_ThirdPersonCharacter
+    Expected parent:  Character  (ACharacter)
+    If it already has a custom C++ parent: check whether that parent
+    already sets bReplicates — if so, you do not need to set it again.
+    If the parent overrides GetLifetimeReplicatedProps, your custom
+    replicated variables may need to call Super:: — but this is handled
+    automatically in Blueprint, so it is usually fine.
+
+  BP_NPC
+    Expected parent:  Character  (ACharacter)  or  Pawn  (APawn)
+    If it has a custom parent with AI controller logic baked in:
+    clearing "AI Controller Class" in Class Defaults may not be enough —
+    the parent may re-set it. In that case, also override BeginPlay and
+    call [Get Controller] > [Cast To AIController] > [Destroy Actor] to
+    forcibly remove the AI controller when a player possesses the pawn.
+
+  BP_ThirdPersonPlayerController
+    Expected parent:  Player Controller  (APlayerController)
+    If it has existing multiplayer-related logic (OnRep_, RPC calls):
+    check whether any of them conflict with the new C++ GameState or
+    PlayerState. Specifically look for variables named "Role" — UE5's
+    base APlayerState already has a deprecated Role property, and if
+    your controller or character also has one it will shadow the
+    EPlayerRole enum we added to ALabrynthPlayerState.
+
+  WHAT TO DO IF YOU FIND A CONFLICT:
+    - Write down what the existing parent does
+    - Reparent to ALabrynthGameMode / keep ACharacter as normal
+    - Move any conflicting custom logic into the BlueprintImplementable
+      event overrides provided by the C++ classes
+    - Come back to this guide and continue from Step 1
+
+<<<<<<< Updated upstream
 ================================================================================
   STEP 2 — WIRE BP_Lab_GameMode  (class defaults only, no graph changes)
 ================================================================================
@@ -86,10 +229,39 @@
 
   The "Is Locally Controlled" check stops all the remote copies of the
   character from trying to show a UI at the same time.
+=======
+--------------------------------------------------------------------------------
+STEP 1 — Reparent BP_ThirdPersonGameMode to ALabrynthGameMode
+--------------------------------------------------------------------------------
+
+  Open:  Content/ThirdPerson/Blueprints/BP_ThirdPersonGameMode
+
+  In the toolbar at the top of the Blueprint editor:
+    Click "Class Settings"
+    In the Details panel on the right, find "Parent Class"
+    Click the dropdown and search:  LabrynthGameMode
+    Select it.
+
+  Now open Class Defaults (toolbar button):
+
+    SurvivorClass   → BP_ThirdPersonCharacter
+    MonsterClass    → BP_NPC
+    SurvivorSpawnTag → SurvivorSpawn   (should already be default)
+    MonsterSpawnTag  → MonsterSpawn    (should already be default)
+
+    Player Controller Class → BP_ThirdPersonPlayerController
+    Game State Class        → (clear it — C++ sets it automatically)
+    Player State Class      → (clear it — C++ sets it automatically)
+
+  The C++ PostLogin now handles ALL spawning and role assignment
+  automatically. You do not need any PostLogin logic in the Blueprint
+  unless you want to add extra Blueprint-side reactions (see Step 2).
+>>>>>>> Stashed changes
 
   Compile and Save.
 
 
+<<<<<<< Updated upstream
 ================================================================================
   STEP 4 — CREATE BP_MonsterCharacter
 ================================================================================
@@ -185,10 +357,103 @@
     Event Construct
       → Get Game Instance → Cast to BP_Lab_GameInstance
       → Get Local IP Address → Set Text (target: Txt_Status)
+=======
+--------------------------------------------------------------------------------
+STEP 2 — (Optional) Blueprint reactions in BP_ThirdPersonGameMode
+--------------------------------------------------------------------------------
+
+  The C++ GameMode fires these events that you can react to in Blueprint.
+  In BP_ThirdPersonGameMode's Event Graph, right-click and search each
+  event name to add an override node:
+
+  "On Survivor Joined"
+    Parameters: SurvivorController (Player Controller), SurvivorIndex (int)
+    Use for: play a "player joined" sound, update a lobby counter widget, etc.
+
+  "On Monster Joined"
+    Parameters: MonsterController (Player Controller)
+    Use for: show a "MONSTER HAS ENTERED" banner, etc.
+
+  "On All Players Ready"
+    No parameters.
+    Use for: start a countdown timer, hide the lobby UI, unlock movement, etc.
+
+  You do NOT have to implement any of these — the game works without them.
+  They are hooks for adding polish.
+
+
+--------------------------------------------------------------------------------
+STEP 3 — Enable replication on BP_ThirdPersonCharacter
+--------------------------------------------------------------------------------
+
+  Open:  Content/ThirdPerson/Blueprints/BP_ThirdPersonCharacter
+
+  Class Defaults panel:
+    Replicates         = checked  (true)
+    Replicate Movement = checked  (true)
+
+  For any custom variables (health, caught state, etc.):
+    Select variable in My Blueprint panel
+    Details panel > Replication > set to "Replicated"
+    For variables that need to trigger client-side logic when they change,
+    use "RepNotify" instead — this auto-creates an OnRep_ function you
+    can add Blueprint logic to.
 
   Compile and Save.
 
 
+--------------------------------------------------------------------------------
+STEP 4 — Make BP_NPC player-possessable
+--------------------------------------------------------------------------------
+
+  Open:  Content/BP_NPC
+         (it lives in the Content root, NOT in Characters/MonsterNPC —
+          that subfolder only contains a Walking animation)
+
+  Class Defaults panel:
+    Replicates              = checked  (true)
+    Replicate Movement      = checked  (true)
+    Auto Possess Player     = Disabled
+    AI Controller Class     = None    ← clear this field
+
+  Components panel — add a 3rd-person camera:
+
+    1. Click "+ Add" > search "Spring Arm" > add it
+       Parent it to the Capsule Component in the component hierarchy.
+       Details:
+         Target Arm Length             = 400
+         Socket Offset Z               = 80
+         Use Pawn Control Rotation     = checked
+
+    2. Click "+ Add" > search "Camera" > add it
+       Parent it to the Spring Arm.
+       Details:
+         Use Pawn Control Rotation     = unchecked  (spring arm handles this)
+
+  Event Graph — enable input when possessed:
+
+    Add Event BeginPlay node (right-click > search "Event BeginPlay")
+
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │ Event BeginPlay                                                      │
+    │   └─> [Branch]                                                      │
+    │         Condition: [Is Locally Controlled]                          │
+    │         True  └─> [Enable Input]                                    │
+    │                     Player Controller: [Get Player Controller (0)]  │
+    │         False └─> (nothing)                                         │
+    └──────────────────────────────────────────────────────────────────────┘
+
+    Node locations (right-click to search each):
+      "Is Locally Controlled"   Pawn category
+      "Branch"                  Flow Control
+      "Enable Input"            Input category
+      "Get Player Controller"   Game category  (index = 0)
+>>>>>>> Stashed changes
+
+  Compile and Save.
+
+
+<<<<<<< Updated upstream
 ================================================================================
   STEP 6 — WIRE THE LOBBY LEVEL BLUEPRINT
 ================================================================================
@@ -309,12 +574,426 @@
 
   The C++ Lab_GameInstance already handles this — it reads the subsystem at
   runtime, so no C++ changes needed.
+=======
+--------------------------------------------------------------------------------
+STEP 5 — Add Spawn Points to the maze level
+--------------------------------------------------------------------------------
+
+  Open:  Content/ThirdPerson/Lvl_ThirdPerson.umap
+
+  Place Actors panel (Shift+1):
+    Search "Player Start" — drag 3 into the level.
+
+  Survivor spawn 1:
+    Place near one maze entrance.
+    Select it > Details > Actor > Tags > click + > type:  SurvivorSpawn
+
+  Survivor spawn 2:
+    Place a short distance from spawn 1 (so players don't overlap).
+    Select it > Details > Actor > Tags > click + > type:  SurvivorSpawn
+
+  Monster spawn:
+    Place it at the far end of the maze, away from survivors.
+    Select it > Details > Actor > Tags > click + > type:  MonsterSpawn
+
+  Save the level.
+
+  NOTE: The C++ GameMode finds these by tag using
+  UGameplayStatics::GetAllActorsWithTag. The tag strings must match
+  exactly (case-sensitive) what you set in Class Defaults:
+    SurvivorSpawnTag = "SurvivorSpawn"
+    MonsterSpawnTag  = "MonsterSpawn"
+
+
+--------------------------------------------------------------------------------
+STEP 6 — Create the Lobby level
+--------------------------------------------------------------------------------
+
+  File > New Level > Empty Level
+  Save as:  Content/ThirdPerson/Maps/Lobby
+  (Create the Maps folder — it does not exist yet, maps are currently
+   loose in Content/ThirdPerson/ root)
+
+  Once you save the Lobby level, update DefaultEngine.ini lines 5-6:
+    Change:  Lvl_ThirdPerson.Lvl_ThirdPerson
+    To:      ThirdPerson/Maps/Lobby.Lobby
+  (There is a comment in the config file reminding you to do this)
+
+  Open the Level Blueprint:
+    Toolbar > Blueprints icon > Open Level Blueprint
+
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │ Event BeginPlay                                                          │
+  │   └─> [Create Widget]                                                   │
+  │           Class: WBP_Menu   ← the existing one in MultiplayerStuff/    │
+  │           Return Value → [Add to Viewport]                              │
+  │   └─> [Get Player Controller] (index 0)                                 │
+  │           └─> [Set Show Mouse Cursor]  Show Mouse Cursor = true         │
+  │           └─> [Set Input Mode UI Only]                                  │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+  Compile and Save the Level Blueprint.
+
+
+--------------------------------------------------------------------------------
+STEP 7 — Update WBP_Menu  (host/join UI — already exists!)
+--------------------------------------------------------------------------------
+
+  DO NOT create a new widget. An existing one is already in the project:
+    Content/MultiplayerStuff/WBP_Menu.uasset
+
+  Open it in the Content Browser.
+
+  ── BEFORE editing, check what's already there ────────────────────────────
+
+    Open the Designer tab and check what UI elements exist.
+    You need at minimum:
+      - A button to HOST (name it Btn_Host if it isn't already)
+      - A button to JOIN  (name it Btn_Join)
+      - An editable text box for the IP address (name it Txt_IPAddress)
+
+    If those already exist under different names, note the actual names
+    and substitute them in the graph logic below.
+    If any are missing, add them from the Palette panel.
+
+    Make sure each interactive widget has "Is Variable" checked in Details.
+
+  ── Graph tab — IMPORTANT: check for existing graph logic first ───────────
+
+    Open the Graph tab and look for any existing OnClicked or button
+    event nodes. If there is already host/join logic wired up:
+      - Check whether it uses "Create Session" or just "Open Level"
+      - If it uses Open Level directly (no Create Session), REPLACE it
+        with the full Create Session flow below — otherwise the online
+        subsystem session won't be properly created and clients can't find
+        the game.
+      - If Create Session is already there, just verify the connection
+        count is 3 and the level path is correct.
+
+  ── Btn_Host > On Clicked ─────────────────────────────────────────────────
+
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │ On Clicked (Btn_Host)                                                │
+    │   └─> [Create Session]                                              │
+    │           Number of Public Connections: 3                           │
+    │           bIsLAN: false                                             │
+    │           bIsPresence: true                                         │
+    │           On Success → [Open Level (by Name)]                       │
+    │                           Level Name:                               │
+    │                           "/Game/ThirdPerson/Lvl_ThirdPerson"       │
+    │                           Options: "listen"                         │
+    │           On Failure → [Print String]  "Failed to host session"     │
+    └──────────────────────────────────────────────────────────────────────┘
+
+    "Create Session"        right-click > search — Online > Sessions
+    "Open Level (by Name)"  right-click > search — Game category
+                            Options pin = "listen" makes this a listen server
+
+  ── Btn_Join > On Clicked ─────────────────────────────────────────────────
+
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │ On Clicked (Btn_Join)                                                │
+    │   └─> [Get Text (Txt_IPAddress)]                                    │
+    │           └─> [Text to String]                                      │
+    │                   └─> [Append]                                      │
+    │                         A: "open "   (note the trailing space)      │
+    │                         B: IP string from above                     │
+    │                         Return → [Execute Console Command]          │
+    └──────────────────────────────────────────────────────────────────────┘
+
+    Final command sent will be:  "open 192.168.x.x"
+
+  Compile and Save WBP_Menu.
+
+
+--------------------------------------------------------------------------------
+STEP 8 — Wire game-over / win conditions to EndGame
+--------------------------------------------------------------------------------
+
+  Wherever you currently call your win/lose logic (WB_Win, WB_GameOver):
+
+  In the Blueprint that detects the win/lose event (runs on server):
+
+    ┌──────────────────────────────────────────────────────────────────────┐
+    │ [Some trigger — e.g. player reaches exit, or monster catches player] │
+    │   └─> [Get Game Mode]                                               │
+    │           └─> [Cast To LabrynthGameMode]   (or BP_ThirdPersonGM)   │
+    │                   As Labrynth Game Mode                             │
+    │                     └─> [End Game]                                  │
+    │                               bSurvivorsWin: true / false           │
+    └──────────────────────────────────────────────────────────────────────┘
+
+  "Get Game Mode"              right-click > Game category
+  "Cast To LabrynthGameMode"   right-click > search Cast
+
+  Then in BP_ThirdPersonGameMode or your GameState Blueprint, override
+  "On Game Phase Changed" to show the correct win/lose widget on all
+  clients based on the NewPhase value.
+
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │ On Game Phase Changed (NewPhase)                                         │
+  │   └─> [Switch on EGamePhase]  (NewPhase)                               │
+  │         SurvivorsWin → [Create WB_Win widget] → [Add to Viewport]      │
+  │         MonsterWins  → [Create WB_GameOver widget] → [Add to Viewport] │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+  Because GameState is replicated, this event fires on every client
+  automatically — each player sees the correct screen.
+
+
+================================================================================
+  PART 3 — TESTING
+================================================================================
+
+--------------------------------------------------------------------------------
+TEST A — Compile check (no editor needed)
+--------------------------------------------------------------------------------
+
+  After making the C++ files for the first time, do a full build before
+  opening the editor. If the build fails:
+
+  - Check the Output window for the first error (not the last).
+  - 99% of UE5 C++ errors are:
+      Missing #include          → add the correct include
+      Missing UFUNCTION macro   → re-check the header
+      Missing API macro         → class must have LABRYNTH_PROJECT_API
+  - After fixing, rebuild before opening the editor.
+
+
+--------------------------------------------------------------------------------
+TEST B — PIE (Play In Editor) — single machine, 3 windows
+--------------------------------------------------------------------------------
+
+  SETUP:
+    Click the small dropdown arrow next to the Play button.
+    Set:
+      Number of Players     = 3
+      Net Mode              = Play As Listen Server
+      Run Under One Process = checked
+
+  HIT PLAY. You will get 3 viewports.
+
+  WHAT TO CHECK:
+    [ ] Each window has an independent camera (not the same view)
+    [ ] Window 1 and 2 control survivor characters with WASD
+    [ ] Window 3 controls the monster character with WASD
+    [ ] Moving in one window does NOT move the other characters
+    [ ] The monster character has a 3rd-person view (spring arm camera)
+
+  CHECKING ROLES:
+    In any Blueprint, add a Print String node connected to a
+    "Get Player State > Cast To LabrynthPlayerState > Role" chain.
+    You should see "Survivor" printed for windows 1 and 2,
+    and "Monster" for window 3.
+
+  CHECKING REPLICATION:
+    Move a survivor in window 1.
+    Look at window 3 (monster view) — you should see the survivor moving.
+    This confirms position replication is working.
+
+  COMMON PIE ISSUES:
+    Lobby UI not appearing   — Normal in multi-window PIE. Test lobby flow
+                               in Standalone mode instead (see Test C).
+    All windows control the same pawn
+                             — BP_NPC's AI Controller Class was not cleared.
+                               Go back to Step 4 and clear it.
+    Window 3 spawns a survivor instead of monster
+                             — MonsterClass not set in BP_ThirdPersonGameMode
+                               Class Defaults. Go back to Step 1.
+    Characters spawn at 0,0,0
+                             — Player Start actors are not tagged correctly
+                               in the level. Go back to Step 5.
+
+
+--------------------------------------------------------------------------------
+TEST C — Standalone + lobby flow test (single machine)
+--------------------------------------------------------------------------------
+
+  SETUP:
+    Play dropdown > Net Mode = Standalone
+    Number of Players = 1
+
+  RUN AS HOST:
+    Hit Play. The Lobby level loads, WBP_MainMenu appears.
+    Click HOST GAME.
+    The game should travel to Lvl_ThirdPerson as a listen server.
+
+  RUN A SECOND INSTANCE:
+    Play dropdown > Run separate process = checked  (or launch a second
+    packaged build if available)
+    In the second instance, type  127.0.0.1  into the IP field.
+    Click JOIN GAME.
+    The second client should connect and spawn as a second survivor.
+
+  Run a third instance the same way for the monster.
+
+  WHAT TO CHECK:
+    [ ] Host sees the lobby menu on startup
+    [ ] Joining via 127.0.0.1 connects successfully
+    [ ] 3 separate windows each control their own character
+    [ ] Disconnecting one client does not crash the other two
+
+
+--------------------------------------------------------------------------------
+TEST D — LAN test (two machines on the same network)
+--------------------------------------------------------------------------------
+
+  HOST machine:
+    Launch the game > click HOST GAME.
+    Find local IP: open a terminal and type:
+      ip addr        (look for inet under your ethernet/WiFi adapter)
+      or
+      hostname -I
+    Example result:  192.168.1.42
+
+  CLIENT machines:
+    Launch the game > type  192.168.1.42  into the IP field > JOIN GAME.
+
+  WHAT TO CHECK:
+    [ ] Client connects without timeout
+    [ ] Both machines see each other's characters moving in real time
+    [ ] Latency is acceptable (check with "stat net" console command)
+
+  If the client cannot connect:
+    - Make sure both machines are on the same network (not one on WiFi,
+      one on ethernet to a different router)
+    - Check Windows Firewall: allow UDP 7777 inbound on the host machine
+        Windows Defender Firewall > Advanced > Inbound Rules >
+        New Rule > Port > UDP > 7777 > Allow
+    - Try pinging the host IP from the client machine first
+
+
+--------------------------------------------------------------------------------
+TEST E — Internet test (different locations, port forwarding)
+--------------------------------------------------------------------------------
+
+  HOST machine:
+    Log into your home router (usually at 192.168.1.1 in a browser).
+    Find Port Forwarding settings (sometimes under "NAT" or "Advanced").
+    Add a rule:
+      Protocol:      UDP
+      External Port: 7777
+      Internal IP:   <host machine's local IP, e.g. 192.168.1.42>
+      Internal Port: 7777
+    Save and apply.
+
+    Find your PUBLIC IP: go to  https://whatismyipaddress.com
+    Share this IP ONLY with your teammates (do not post it publicly).
+
+    Launch the game > click HOST GAME.
+
+  CLIENT machines:
+    Launch the game > type in the host's PUBLIC IP > click JOIN GAME.
+
+  WHAT TO CHECK:
+    Same as Test D, but expect ~20-80ms latency depending on distance.
+    Use the "stat net" console command in-game to see actual latency.
+
+  If clients cannot connect:
+    - Double-check port forward is UDP not TCP
+    - Check host machine firewall (see Test D)
+    - Some ISPs block incoming connections — if so, use a relay like
+      ngrok or a simple VPS as a dedicated server
+
+
+--------------------------------------------------------------------------------
+TEST F — Stress / edge case tests
+--------------------------------------------------------------------------------
+
+  [ ] Monster player disconnects mid-game
+        Expected: remaining survivors should not crash.
+        Logout() in C++ decrements ConnectedPlayerCount.
+        Add a null-check in any Blueprint that references the monster.
+
+  [ ] Survivor disconnects mid-game
+        Expected: other survivor and monster keep playing.
+
+  [ ] All 3 players connect, then one survivor reaches the exit
+        Expected: EndGame(true) is called, WB_Win shows on survivor clients,
+        WB_GameOver shows on monster client.
+
+  [ ] Monster catches both survivors
+        Expected: EndGame(false) is called, WB_GameOver on survivors,
+        WB_Win on monster client.
+
+  [ ] A 4th player tries to connect
+        Expected: rejected — MaxPlayers=3 in DefaultGame.ini.
+
+  [ ] Host machine drops internet connection
+        Expected: clients should timeout gracefully (not hang forever).
+        Test by disabling the host's network adapter mid-game.
+
+
+================================================================================
+  C++ CLASSES REFERENCE
+================================================================================
+
+  ALabrynthGameMode   (LabrynthGameMode.h)
+  ─────────────────────────────────────────────────────────────────────────────
+  Properties (set in BP_ThirdPersonGameMode Class Defaults):
+    SurvivorClass        TSubclassOf<APawn>   pawn for survivor players
+    MonsterClass         TSubclassOf<APawn>   pawn for the monster player
+    SurvivorSpawnTag     FName                tag on level's survivor spawns
+    MonsterSpawnTag      FName                tag on level's monster spawn
+
+  Blueprint Callable (server only):
+    EndGame(bSurvivorsWin)   call to end the match and set the game phase
+
+  Blueprint Pure (any):
+    GetRoleForController(Controller)   returns EPlayerRole for a controller
+
+  Blueprint Implementable Events (override in BP_ThirdPersonGameMode):
+    OnSurvivorJoined(Controller, Index)
+    OnMonsterJoined(Controller)
+    OnAllPlayersReady()
+
+  ─────────────────────────────────────────────────────────────────────────────
+  ALabrynthPlayerState   (LabrynthPlayerState.h)
+  ─────────────────────────────────────────────────────────────────────────────
+  Replicated property:
+    Role    EPlayerRole   automatically synced to all clients
+
+  Blueprint Pure:
+    IsMonster()    returns bool
+    IsSurvivor()   returns bool
+
+  ─────────────────────────────────────────────────────────────────────────────
+  ALabrynthGameState   (LabrynthGameState.h)
+  ─────────────────────────────────────────────────────────────────────────────
+  Replicated properties:
+    ConnectedPlayerCount   int32        how many players have joined
+    GamePhase              EGamePhase   current phase of the match
+
+  Blueprint Callable (server only):
+    SetGamePhase(NewPhase)
+
+  Blueprint Implementable Events (override in a GameState BP child):
+    OnGamePhaseChanged(NewPhase)     fires on ALL clients when phase changes
+    OnConnectedCountChanged(Count)   fires on all clients when count changes
+
+
+================================================================================
+  ENUMS REFERENCE
+================================================================================
+
+  EPlayerRole         (use via LabrynthPlayerState or GetRoleForController)
+    Unassigned
+    Survivor
+    Monster
+
+  EGamePhase          (use via LabrynthGameState)
+    WaitingForPlayers
+    InProgress
+    SurvivorsWin
+    MonsterWins
+>>>>>>> Stashed changes
 
 
 ================================================================================
   QUICK REFERENCE — WHAT EACH C++ CLASS DOES
 ================================================================================
 
+<<<<<<< Updated upstream
   Lab_GameMode       Server only. Spawns the right pawn when each player connects.
                      Tracks win conditions. Override OnMonsterWins / OnSurvivorsWin
                      in BP_Lab_GameMode to trigger your end-game screens.
@@ -328,6 +1007,34 @@
   Lab_PlayerController  Shared by survivors and monster. Exposes:
                      EnableUIInputMode / EnableGameInputMode / IsMonsterPlayer /
                      IsLocalController_BP — all callable from any Blueprint.
+=======
+  On disk:
+  ─────────────────────────────────────────────────────────────────────────────
+  C++ source (already written):
+    Source/Labrynth_Project/Labrynth_Project.Build.cs
+    Source/Labrynth_Project/Labrynth_Project.h
+    Source/Labrynth_Project/Labrynth_Project.cpp
+    Source/Labrynth_Project/LabrynthGameMode.h
+    Source/Labrynth_Project/LabrynthGameMode.cpp
+    Source/Labrynth_Project/LabrynthPlayerState.h
+    Source/Labrynth_Project/LabrynthPlayerState.cpp
+    Source/Labrynth_Project/LabrynthGameState.h
+    Source/Labrynth_Project/LabrynthGameState.cpp
+
+  Config (already edited):
+    Config/DefaultEngine.ini
+    Config/DefaultGame.ini
+
+  New files to create in Unreal Editor:
+    Content/ThirdPerson/Maps/Lobby.umap         (create folder + level)
+
+  Existing files to modify in Unreal Editor:
+    Content/ThirdPerson/Blueprints/BP_ThirdPersonGameMode.uasset
+    Content/ThirdPerson/Blueprints/BP_ThirdPersonCharacter.uasset
+    Content/BP_NPC.uasset                       (lives in Content ROOT, not MonsterNPC/)
+    Content/MultiplayerStuff/WBP_Menu.uasset    (update existing, don't recreate)
+    Content/ThirdPerson/Lvl_ThirdPerson.umap    (add 3 Player Start actors)
+>>>>>>> Stashed changes
 
   Lab_GameInstance   Persists across level loads. Handles Host / Join / Disconnect.
                      Call HostGame and JoinGameByIP from WBP_Menu.

@@ -13,6 +13,7 @@ public class Labrynth_Project : ModuleRules
 			"Engine",
 			"InputCore",
 			"EnhancedInput",
+<<<<<<< Updated upstream
 			"UMG",
 			"OnlineSubsystem",
 			"OnlineSubsystemUtils",
@@ -25,5 +26,12 @@ public class Labrynth_Project : ModuleRules
 			"Slate",
 			"SlateCore"
 		});
+=======
+			"OnlineSubsystem",
+			"OnlineSubsystemUtils"
+		});
+
+		PrivateDependencyModuleNames.AddRange(new string[] { });
+>>>>>>> Stashed changes
 	}
 }
