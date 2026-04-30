@@ -45,6 +45,10 @@ public:
 	UPROPERTY(ReplicatedUsing = OnRep_bIsCaught, BlueprintReadOnly, Category = "Player|Status")
 	bool bIsCaught = false;
 
+	// True once this player has pressed E to confirm they are ready for the round to start.
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Player|Status")
+	bool bIsReady = false;
+
 	// The username this player typed in the main menu. Set by Server_SetDisplayName
 	// in the PlayerController. Replicated so all machines can read it for nameplates.
 	UPROPERTY(ReplicatedUsing = OnRep_DisplayName, BlueprintReadOnly, Category = "Player|Identity")
@@ -65,6 +69,14 @@ public:
 	// Resets caught state at the start of a new round so the player can be caught again.
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Player|Status")
 	void ResetCaught();
+
+	// Marks this player as ready for the round to begin.
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Player|Status")
+	void SetReady();
+
+	// Clears the ready flag between rounds.
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Player|Status")
+	void ResetReady();
 
 	// Called by the PlayerController's Server RPC when the player confirms their username.
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Player|Identity")

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
+#include "Lab_Types.h"
 #include "Lab_PlayerController.generated.h"
 
 /**
@@ -23,6 +24,7 @@ class LABRYNTH_PROJECT_API ALab_PlayerController : public APlayerController
 
 public:
 	virtual void BeginPlay() override;
+	virtual void SetupInputComponent() override;
 
 	// Switch input to UI-only mode: shows the cursor, enables widget clicks,
 	// disables WASD/look input. Call this when showing a menu or pause screen.
@@ -46,7 +48,17 @@ public:
 
 private:
 	// Sends the local username to the server so it can write to PlayerState.
-	// Called automatically in BeginPlay — no Blueprint wiring needed.
 	UFUNCTION(Server, Reliable)
 	void Server_SetDisplayName(const FString& Name);
+
+	// Tells the server this player has pressed E and is ready to start.
+	UFUNCTION(Server, Reliable)
+	void Server_SetReady();
+
+	// Binds phase changes to movement locking on the local machine.
+	UFUNCTION()
+	void HandlePhaseChanged(EGamePhase NewPhase);
+
+	// Raw key handler for the E ready-up input.
+	void OnReadyPressed();
 };

@@ -18,6 +18,8 @@ UENUM(BlueprintType)
 enum class EGamePhase : uint8
 {
 	WaitingForPlayers UMETA(DisplayName = "Waiting for Players"),
+	// All players connected; waiting for everyone to press E before the timer starts.
+	WaitingToStart    UMETA(DisplayName = "Waiting to Start"),
 	InProgress        UMETA(DisplayName = "In Progress"),
 	// Brief pause between rounds: timer is frozen, next round is about to begin.
 	RoundEnding       UMETA(DisplayName = "Round Ending"),

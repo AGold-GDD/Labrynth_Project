@@ -7,6 +7,7 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGamePhaseChanged, EGamePhase, NewPhase);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnConnectedCountChanged, int32, NewCount);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnReadyCountChanged, int32, NewCount);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRoundResultsUpdated);
 
 /**
@@ -48,6 +49,10 @@ public:
 	UPROPERTY(ReplicatedUsing = OnRep_CaughtSurvivorCount, BlueprintReadOnly, Category = "Game")
 	int32 CaughtSurvivorCount = 0;
 
+	// How many players have pressed E to ready up. Resets to 0 at the start of each round.
+	UPROPERTY(ReplicatedUsing = OnRep_ReadyPlayerCount, BlueprintReadOnly, Category = "Game")
+	int32 ReadyPlayerCount = 0;
+
 	// Seconds elapsed in the current round. Server increments this; clients read it.
 	// Use GetTimerText() in WBP_HUD for a formatted MM:SS.cs string.
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Game|Timer")
@@ -73,6 +78,10 @@ public:
 	// Increments the caught count and fires OnRep. Called by the GameMode when a survivor is tagged.
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Game")
 	void NotifySurvivorCaught();
+
+	// Sets the ready player count and broadcasts the delegate. Called by the GameMode.
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Game")
+	void SetReadyPlayerCount(int32 Count);
 
 	// Starts ticking the round timer. Call at the beginning of each round.
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Game|Timer")
@@ -105,6 +114,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Game|Events")
 	FOnRoundResultsUpdated OnRoundResultsUpdated;
 
+	// Fires on all clients when the ready count changes. Bind in WBP_HUD to update the ready counter.
+	UPROPERTY(BlueprintAssignable, Category = "Game|Events")
+	FOnReadyCountChanged OnReadyCountChanged;
+
 private:
 	// Server-only; not replicated. Clients infer timer state from GamePhase.
 	bool bTimerActive = false;
@@ -117,6 +130,9 @@ private:
 
 	UFUNCTION()
 	void OnRep_CaughtSurvivorCount();
+
+	UFUNCTION()
+	void OnRep_ReadyPlayerCount();
 
 	UFUNCTION()
 	void OnRep_RoundResults();

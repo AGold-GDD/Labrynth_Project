@@ -7,6 +7,7 @@ void ALab_PlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& Out
 
 	DOREPLIFETIME(ALab_PlayerState, PlayerRole);
 	DOREPLIFETIME(ALab_PlayerState, bIsCaught);
+	DOREPLIFETIME(ALab_PlayerState, bIsReady);
 	DOREPLIFETIME(ALab_PlayerState, DisplayName);
 }
 
@@ -27,7 +28,16 @@ void ALab_PlayerState::SetCaught()
 void ALab_PlayerState::ResetCaught()
 {
 	bIsCaught = false;
-	// Intentionally don't broadcast OnSurvivorCaught — this is a reset, not a catch event.
+}
+
+void ALab_PlayerState::SetReady()
+{
+	bIsReady = true;
+}
+
+void ALab_PlayerState::ResetReady()
+{
+	bIsReady = false;
 }
 
 void ALab_PlayerState::OnRep_PlayerRole()

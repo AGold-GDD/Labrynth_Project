@@ -29,6 +29,7 @@ void ALab_GameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(ALab_GameState, RoundElapsedTime);
 	DOREPLIFETIME(ALab_GameState, CurrentRound);
 	DOREPLIFETIME(ALab_GameState, RoundResults);
+	DOREPLIFETIME(ALab_GameState, ReadyPlayerCount);
 }
 
 void ALab_GameState::SetGamePhase(EGamePhase NewPhase)
@@ -68,10 +69,17 @@ void ALab_GameState::AddRoundResult(const FString& PlayerName, float TimeSeconds
 	OnRep_RoundResults(); // Manually fire on the server
 }
 
+void ALab_GameState::SetReadyPlayerCount(int32 Count)
+{
+	ReadyPlayerCount = Count;
+	OnRep_ReadyPlayerCount();
+}
+
 void ALab_GameState::ResetForNewRound(int32 NewRoundNumber)
 {
 	RoundElapsedTime = 0.f;
 	CaughtSurvivorCount = 0;
+	ReadyPlayerCount = 0;
 	CurrentRound = NewRoundNumber;
 	bTimerActive = false;
 }
@@ -90,6 +98,11 @@ void ALab_GameState::OnRep_CaughtSurvivorCount()
 {
 	// GameMode handles win condition. This RepNotify is a hook for Blueprint
 	// if you want to play an animation or sound on all clients when a survivor is caught.
+}
+
+void ALab_GameState::OnRep_ReadyPlayerCount()
+{
+	OnReadyCountChanged.Broadcast(ReadyPlayerCount);
 }
 
 void ALab_GameState::OnRep_RoundResults()
