@@ -1,5 +1,6 @@
 #include "Lab_HUDWidget.h"
 #include "Lab_GameState.h"
+#include "Lab_PlayerState.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SBorder.h"
@@ -19,6 +20,23 @@ static const FMargin      ResultsPad = FMargin(50.f, 30.f);
 
 TSharedRef<SWidget> ULab_HUDWidget::RebuildWidget()
 {
+	// ------------------------------------------------------------------
+	//  Ready-up panel — shown during WaitingToStart
+	// ------------------------------------------------------------------
+	TSharedRef<SBorder> ReadyWidget =
+		SNew(SBorder)
+		.BorderBackgroundColor(PanelBg)
+		.Padding(BannerPad)
+		.Visibility(EVisibility::Collapsed)
+		[
+			SNew(STextBlock)
+			.Text_UObject(this, &ULab_HUDWidget::GetReadyText)
+			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 28))
+			.ColorAndOpacity(White)
+			.Justification(ETextJustify::Center)
+		];
+	ReadyPanel = ReadyWidget;
+
 	// ------------------------------------------------------------------
 	//  Timer panel — shown during InProgress and RoundEnding
 	// ------------------------------------------------------------------
@@ -109,6 +127,14 @@ TSharedRef<SWidget> ULab_HUDWidget::RebuildWidget()
 	// ------------------------------------------------------------------
 	return SNew(SOverlay)
 
+		// Ready-up prompt — screen center
+		+ SOverlay::Slot()
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		[
+			ReadyWidget
+		]
+
 		// Timer — top center
 		+ SOverlay::Slot()
 		.HAlign(HAlign_Center)
@@ -184,15 +210,44 @@ FText ULab_HUDWidget::GetRoundText() const
 	return FText::FromString(FString::Printf(TEXT("Round %d / 3"), Current));
 }
 
+FText ULab_HUDWidget::GetReadyText() const
+{
+	ALab_GameState* GS = CachedGameState.Get();
+	const int32 ReadyCount  = GS ? GS->ReadyPlayerCount : 0;
+	const int32 TotalPlayers = 3;
+
+	// Check whether the local player has already readied up
+	bool bLocalReady = false;
+	if (APlayerController* PC = GetOwningPlayer())
+	{
+		if (ALab_PlayerState* PS = PC->GetPlayerState<ALab_PlayerState>())
+		{
+			bLocalReady = PS->bIsReady;
+		}
+	}
+
+	if (bLocalReady)
+	{
+		return FText::FromString(
+			FString::Printf(TEXT("Ready!\n%d / %d players ready"), ReadyCount, TotalPlayers));
+	}
+	return FText::FromString(
+		FString::Printf(TEXT("Press E to Ready Up\n%d / %d players ready"), ReadyCount, TotalPlayers));
+}
+
 // ─── Delegate handlers ────────────────────────────────────────────────────────
 
 void ULab_HUDWidget::HandlePhaseChanged(EGamePhase NewPhase)
 {
 	CurrentPhase = NewPhase;
 
-	const bool bShowTimer      = (NewPhase == EGamePhase::InProgress || NewPhase == EGamePhase::RoundEnding);
-	const bool bShowRoundEnd   = (NewPhase == EGamePhase::RoundEnding);
-	const bool bShowResults    = (NewPhase == EGamePhase::ShowingResults);
+	const bool bShowReady    = (NewPhase == EGamePhase::WaitingToStart);
+	const bool bShowTimer    = (NewPhase == EGamePhase::InProgress || NewPhase == EGamePhase::RoundEnding);
+	const bool bShowRoundEnd = (NewPhase == EGamePhase::RoundEnding);
+	const bool bShowResults  = (NewPhase == EGamePhase::ShowingResults);
+
+	if (ReadyPanel.IsValid())
+		ReadyPanel->SetVisibility(bShowReady ? EVisibility::Visible : EVisibility::Collapsed);
 
 	if (TimerPanel.IsValid())
 		TimerPanel->SetVisibility(bShowTimer ? EVisibility::Visible : EVisibility::Collapsed);

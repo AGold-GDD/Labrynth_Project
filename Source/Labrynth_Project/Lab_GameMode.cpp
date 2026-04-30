@@ -50,12 +50,11 @@ void ALab_GameMode::PostLogin(APlayerController* NewPlayer)
 		case 3:
 			SpawnAndPossess(NewPlayer, MonsterPawnClass,
 			                FindSpawnTransform(MonsterSpawnTag, 0), EPlayerRole::Monster);
-			// All three players connected — start round 1
+			// All three players connected — wait for everyone to ready up before starting
 			if (ALab_GameState* GS = GetGameState<ALab_GameState>())
 			{
 				GS->ResetForNewRound(1);
-				GS->SetGamePhase(EGamePhase::InProgress);
-				GS->StartRoundTimer();
+				GS->SetGamePhase(EGamePhase::WaitingToStart);
 			}
 			break;
 		default:
@@ -130,6 +129,34 @@ void ALab_GameMode::NotifySurvivorEscaped()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Ready-up
+// ─────────────────────────────────────────────────────────────────────────────
+
+void ALab_GameMode::NotifyPlayerReady()
+{
+	++ReadyPlayerCount;
+
+	if (ALab_GameState* GS = GetGameState<ALab_GameState>())
+	{
+		GS->SetReadyPlayerCount(ReadyPlayerCount);
+	}
+
+	if (ReadyPlayerCount >= AllPlayers.Num())
+	{
+		StartCurrentRound();
+	}
+}
+
+void ALab_GameMode::StartCurrentRound()
+{
+	if (ALab_GameState* GS = GetGameState<ALab_GameState>())
+	{
+		GS->SetGamePhase(EGamePhase::InProgress);
+		GS->StartRoundTimer();
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Win / round evaluation
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -197,25 +224,26 @@ void ALab_GameMode::OnRoundTransitionComplete()
 	}
 
 	// Reset per-round state on all PlayerStates.
+	ReadyPlayerCount = 0;
+	CaughtSurvivorCount  = 0;
+	EscapedSurvivorCount = 0;
+
 	for (APlayerController* PC : AllPlayers)
 	{
 		if (!PC) continue;
 		if (ALab_PlayerState* PS = PC->GetPlayerState<ALab_PlayerState>())
 		{
 			PS->ResetCaught();
+			PS->ResetReady();
 		}
 	}
-
-	CaughtSurvivorCount  = 0;
-	EscapedSurvivorCount = 0;
 
 	RespawnAllPlayers(MonsterOrder[CurrentRoundIdx]);
 
 	if (ALab_GameState* GS = GetGameState<ALab_GameState>())
 	{
 		GS->ResetForNewRound(CurrentRoundIdx + 1);
-		GS->SetGamePhase(EGamePhase::InProgress);
-		GS->StartRoundTimer();
+		GS->SetGamePhase(EGamePhase::WaitingToStart);
 	}
 }
 

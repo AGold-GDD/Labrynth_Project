@@ -41,6 +41,10 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Game|WinCondition")
 	void NotifySurvivorCaught(APlayerController* CaughtPlayer);
 
+	// Called by the PlayerController's Server RPC when a player presses E to ready up.
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Game|Rounds")
+	void NotifyPlayerReady();
+
 	// Call this from the exit trigger in the maze level when a survivor overlaps it.
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Game|WinCondition")
 	void NotifySurvivorEscaped();
@@ -97,9 +101,15 @@ private:
 	// Which round we're currently running (0-based index into MonsterOrder).
 	int32 CurrentRoundIdx = 0;
 
+	// How many players have readied up this round (server-only counter).
+	int32 ReadyPlayerCount = 0;
+
 	FTimerHandle RoundTransitionHandle;
 
 	// ── Round management ──────────────────────────────────────────────────────
+
+	// Transitions from WaitingToStart → InProgress when all players are ready.
+	void StartCurrentRound();
 
 	// Records the round result, pauses the timer, and schedules the transition.
 	void FinishCurrentRound();

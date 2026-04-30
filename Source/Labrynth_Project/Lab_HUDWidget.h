@@ -40,6 +40,7 @@ private:
 
 	FText GetTimerText() const;
 	FText GetRoundText() const;
+	FText GetReadyText() const;
 
 	// ── Delegate handlers ─────────────────────────────────────────────────────
 
@@ -58,6 +59,7 @@ private:
 	EGamePhase CurrentPhase = EGamePhase::WaitingForPlayers;
 
 	// Panel pointers — held so we can toggle visibility on phase change.
+	TSharedPtr<SWidget> ReadyPanel;
 	TSharedPtr<SWidget> TimerPanel;
 	TSharedPtr<SWidget> RoundEndingPanel;
 	TSharedPtr<SWidget> ResultsPanel;
