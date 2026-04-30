@@ -10,18 +10,20 @@
  *
  * Only exists on the server. Never runs on clients.
  *
- * Responsibilities:
- *   - PostLogin:  counts connecting players, spawns the correct pawn, possesses it,
- *                 assigns the player's role in their PlayerState.
- *   - Logout:     decrements the count and ends the game if not enough players remain.
- *   - NotifySurvivorCaught: called by the monster character when it tags a survivor.
- *                 Checks if all survivors are caught (monster wins) or not.
- *   - CheckSurvivorEscape:  called when a survivor reaches the exit.
- *                 Checks if the remaining free survivors have escaped (survivors win).
+ * Round rotation overview:
+ *   - Three players each take one turn as monster.
+ *   - Monster order by join index: {2, 0, 1} (3rd joined first, then 1st, then 2nd).
+ *   - When all survivors are caught the round ends: timer pauses, result is recorded,
+ *     a 3-second countdown fires, then the next round begins (or results are shown).
  *
- * Create a Blueprint child (BP_Lab_GameMode) in Content/MultiplayerStuff/.
- * Set SurvivorPawnClass and MonsterPawnClass there in the Class Defaults.
- * Then set BP_Lab_GameMode as the GameMode in DefaultEngine.ini.
+ * Spawn point tags (set on Player Start actors in the level):
+ *   - SurvivorSpawn (needs 2 actors)
+ *   - MonsterSpawn  (needs 1 actor)
+ *
+ * Create BP_Lab_GameMode as a Blueprint child and set:
+ *   - SurvivorPawnClass
+ *   - MonsterPawnClass
+ *   - HUDClass → BP_Lab_HUD
  */
 UCLASS()
 class LABRYNTH_PROJECT_API ALab_GameMode : public AGameModeBase
@@ -46,47 +48,72 @@ public:
 protected:
 	// ── Set these in BP_Lab_GameMode's Class Defaults ─────────────────────────
 
-	// Pawn spawned for each survivor player (player 1 and player 2).
+	// Pawn spawned for each survivor player.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game|Setup")
 	TSubclassOf<APawn> SurvivorPawnClass;
 
-	// Pawn spawned for the monster player (player 3).
+	// Pawn spawned for the monster player.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game|Setup")
 	TSubclassOf<APawn> MonsterPawnClass;
 
 	// Actor tag used to identify survivor spawn points placed in the maze level.
-	// Place two Player Start actors in the level and give them this tag.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game|Setup")
 	FName SurvivorSpawnTag = TEXT("SurvivorSpawn");
 
-	// Actor tag used to identify the single monster spawn point.
+	// Actor tag used to identify the monster spawn point(s).
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game|Setup")
 	FName MonsterSpawnTag = TEXT("MonsterSpawn");
 
-	// Total number of survivors in the game. Drives win condition checks.
+	// Total number of survivors per round.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game|Setup")
 	int32 TotalSurvivors = 2;
 
+	// Seconds to pause between the end of one round and the start of the next.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game|Setup")
+	float RoundTransitionDelay = 3.f;
+
 	// ── Optional Blueprint overrides ──────────────────────────────────────────
 
-	// Called on the server when the game transitions to MonsterWins.
-	// Override in BP_Lab_GameMode to show a game-over UI or play a cutscene.
-	UFUNCTION(BlueprintNativeEvent, BlueprintAuthorityOnly, Category = "Game|WinCondition")
-	void OnMonsterWins();
-	virtual void OnMonsterWins_Implementation();
+	// Called on the server when a round finishes (all survivors caught).
+	// Override in BP_Lab_GameMode to show a round-end animation or sound.
+	UFUNCTION(BlueprintNativeEvent, BlueprintAuthorityOnly, Category = "Game|Rounds")
+	void OnRoundComplete(int32 RoundNumber, const FString& MonsterName, float TimeSeconds);
+	virtual void OnRoundComplete_Implementation(int32 RoundNumber, const FString& MonsterName, float TimeSeconds);
 
-	// Called on the server when the game transitions to SurvivorsWin.
-	UFUNCTION(BlueprintNativeEvent, BlueprintAuthorityOnly, Category = "Game|WinCondition")
-	void OnSurvivorsWin();
-	virtual void OnSurvivorsWin_Implementation();
+	// Called on the server after all rounds have finished.
+	// Override in BP_Lab_GameMode to do any final cleanup before ShowingResults.
+	UFUNCTION(BlueprintNativeEvent, BlueprintAuthorityOnly, Category = "Game|Rounds")
+	void OnAllRoundsComplete();
+	virtual void OnAllRoundsComplete_Implementation();
 
 private:
+	// All connected controllers in join order (index 0 = first to join).
+	TArray<APlayerController*> AllPlayers;
+
 	int32 ConnectedPlayerCount = 0;
-	int32 CaughtSurvivorCount = 0;
+	int32 CaughtSurvivorCount  = 0;
 	int32 EscapedSurvivorCount = 0;
 
+	// Which round we're currently running (0-based index into MonsterOrder).
+	int32 CurrentRoundIdx = 0;
+
+	FTimerHandle RoundTransitionHandle;
+
+	// ── Round management ──────────────────────────────────────────────────────
+
+	// Records the round result, pauses the timer, and schedules the transition.
+	void FinishCurrentRound();
+
+	// Fires after RoundTransitionDelay; starts the next round or shows results.
+	void OnRoundTransitionComplete();
+
+	// Destroys all existing pawns and respawns everyone with fresh roles.
+	// MonsterPlayerIdx is the index into AllPlayers who should be the monster.
+	void RespawnAllPlayers(int32 MonsterPlayerIdx);
+
+	// ── Helpers ───────────────────────────────────────────────────────────────
+
 	// Returns the world transform of the Nth actor with the given tag.
-	// Returns FTransform::Identity and logs a warning if none is found.
 	FTransform FindSpawnTransform(FName Tag, int32 Index) const;
 
 	// Spawns a pawn of PawnClass at SpawnTransform, possesses it with PC,
@@ -94,6 +121,5 @@ private:
 	void SpawnAndPossess(APlayerController* PC, TSubclassOf<APawn> PawnClass,
 	                     const FTransform& SpawnTransform, EPlayerRole AssignedRole);
 
-	// Evaluates the win condition after a survivor is caught or escapes.
 	void EvaluateWinCondition();
 };

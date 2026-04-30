@@ -62,6 +62,10 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Player|Status")
 	void SetCaught();
 
+	// Resets caught state at the start of a new round so the player can be caught again.
+	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Player|Status")
+	void ResetCaught();
+
 	// Called by the PlayerController's Server RPC when the player confirms their username.
 	UFUNCTION(BlueprintCallable, BlueprintAuthorityOnly, Category = "Player|Identity")
 	void SetDisplayName(const FString& Name);

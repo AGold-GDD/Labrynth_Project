@@ -1,7 +1,23 @@
 #include "Lab_GameState.h"
 #include "Net/UnrealNetwork.h"
 
-ALab_GameState::ALab_GameState() {}
+ALab_GameState::ALab_GameState()
+{
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bStartWithTickEnabled = true;
+	// Higher update frequency so the replicated timer appears smooth on clients.
+	NetUpdateFrequency = 20.f;
+}
+
+void ALab_GameState::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+	// Only the server increments the timer; replication pushes the value to clients.
+	if (HasAuthority() && bTimerActive)
+	{
+		RoundElapsedTime += DeltaTime;
+	}
+}
 
 void ALab_GameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
@@ -10,6 +26,9 @@ void ALab_GameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(ALab_GameState, GamePhase);
 	DOREPLIFETIME(ALab_GameState, ConnectedPlayerCount);
 	DOREPLIFETIME(ALab_GameState, CaughtSurvivorCount);
+	DOREPLIFETIME(ALab_GameState, RoundElapsedTime);
+	DOREPLIFETIME(ALab_GameState, CurrentRound);
+	DOREPLIFETIME(ALab_GameState, RoundResults);
 }
 
 void ALab_GameState::SetGamePhase(EGamePhase NewPhase)
@@ -30,6 +49,33 @@ void ALab_GameState::NotifySurvivorCaught()
 	OnRep_CaughtSurvivorCount();
 }
 
+void ALab_GameState::StartRoundTimer()
+{
+	bTimerActive = true;
+}
+
+void ALab_GameState::PauseRoundTimer()
+{
+	bTimerActive = false;
+}
+
+void ALab_GameState::AddRoundResult(const FString& PlayerName, float TimeSeconds)
+{
+	FRoundResult Result;
+	Result.PlayerName = PlayerName;
+	Result.TimeSeconds = TimeSeconds;
+	RoundResults.Add(Result);
+	OnRep_RoundResults(); // Manually fire on the server
+}
+
+void ALab_GameState::ResetForNewRound(int32 NewRoundNumber)
+{
+	RoundElapsedTime = 0.f;
+	CaughtSurvivorCount = 0;
+	CurrentRound = NewRoundNumber;
+	bTimerActive = false;
+}
+
 void ALab_GameState::OnRep_GamePhase()
 {
 	OnGamePhaseChanged.Broadcast(GamePhase);
@@ -44,4 +90,9 @@ void ALab_GameState::OnRep_CaughtSurvivorCount()
 {
 	// GameMode handles win condition. This RepNotify is a hook for Blueprint
 	// if you want to play an animation or sound on all clients when a survivor is caught.
+}
+
+void ALab_GameState::OnRep_RoundResults()
+{
+	OnRoundResultsUpdated.Broadcast();
 }

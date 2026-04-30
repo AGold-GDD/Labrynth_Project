@@ -24,6 +24,12 @@ void ALab_PlayerState::SetCaught()
 	OnRep_bIsCaught();
 }
 
+void ALab_PlayerState::ResetCaught()
+{
+	bIsCaught = false;
+	// Intentionally don't broadcast OnSurvivorCaught — this is a reset, not a catch event.
+}
+
 void ALab_PlayerState::OnRep_PlayerRole()
 {
 	OnRoleAssigned.Broadcast(PlayerRole);
