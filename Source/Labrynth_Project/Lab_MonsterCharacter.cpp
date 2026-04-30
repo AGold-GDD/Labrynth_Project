@@ -133,7 +133,11 @@ void ALab_MonsterCharacter::Server_TryTag_Implementation()
 	FCollisionQueryParams Params;
 	Params.AddIgnoredActor(this);
 
-	if (!GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
+	// Sphere sweep on ECC_Pawn so we reliably hit the survivor's capsule
+	// rather than relying on a pixel-perfect line trace that can be blocked by props.
+	const float SweepRadius = 40.f;
+	if (!GetWorld()->SweepSingleByChannel(Hit, Start, End, FQuat::Identity,
+	                                      ECC_Pawn, FCollisionShape::MakeSphere(SweepRadius), Params))
 		return;
 
 	ALab_SurvivorCharacter* Survivor = Cast<ALab_SurvivorCharacter>(Hit.GetActor());

@@ -29,11 +29,10 @@ void ALab_PlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
 
-	// Raw key binding for E — only acts during WaitingToStart, so it won't
-	// conflict with the monster's E-to-tag action during gameplay.
+	// Use Enter to ready up — avoids conflicting with the monster's E-to-tag chord.
 	if (InputComponent)
 	{
-		InputComponent->BindKey(EKeys::E, EInputEvent::IE_Pressed,
+		InputComponent->BindKey(EKeys::Enter, EInputEvent::IE_Pressed,
 		                        this, &ALab_PlayerController::OnReadyPressed);
 	}
 }
@@ -49,7 +48,7 @@ void ALab_PlayerController::HandlePhaseChanged(EGamePhase NewPhase)
 	else
 	{
 		ResetIgnoreMoveInput();
-		SetIgnoreLookInput(false);
+		ResetIgnoreLookInput(); // Must reset the counter fully — SetIgnoreLookInput(false) only decrements by 1
 	}
 }
 

@@ -232,7 +232,7 @@ FText ULab_HUDWidget::GetReadyText() const
 			FString::Printf(TEXT("Ready!\n%d / %d players ready"), ReadyCount, TotalPlayers));
 	}
 	return FText::FromString(
-		FString::Printf(TEXT("Press E to Ready Up\n%d / %d players ready"), ReadyCount, TotalPlayers));
+		FString::Printf(TEXT("Press Enter to Ready Up\n%d / %d players ready"), ReadyCount, TotalPlayers));
 }
 
 // ─── Delegate handlers ────────────────────────────────────────────────────────
