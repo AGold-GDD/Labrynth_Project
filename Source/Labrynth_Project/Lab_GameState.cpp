@@ -6,7 +6,7 @@ ALab_GameState::ALab_GameState()
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = true;
 	// Higher update frequency so the replicated timer appears smooth on clients.
-	NetUpdateFrequency = 20.f;
+	SetNetUpdateFrequency(20.f);
 }
 
 void ALab_GameState::Tick(float DeltaTime)
