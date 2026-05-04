@@ -68,9 +68,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game|Setup")
 	FName MonsterSpawnTag = TEXT("MonsterSpawn");
 
-	// Total number of survivors per round.
+	// How many players must connect before the game starts (survivors = MaxPlayers-1, monster = 1).
+	// Set this in BP_Lab_GameMode to match the lobby player count.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game|Setup")
-	int32 TotalSurvivors = 2;
+	int32 MaxPlayers = 3;
 
 	// Seconds to pause between the end of one round and the start of the next.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game|Setup")
