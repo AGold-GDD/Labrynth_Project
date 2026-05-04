@@ -1,10 +1,18 @@
 #include "Lab_GameMode.h"
 #include "Lab_GameState.h"
 #include "Lab_PlayerState.h"
+#include "Lab_GameInstance.h"
 #include "Lab_HUD.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
 
+
+int32 ALab_GameMode::GetSessionPlayerCount() const
+{
+	if (ULab_GameInstance* GI = GetGameInstance<ULab_GameInstance>())
+		return FMath::Clamp(GI->SessionPlayerCount, 3, 6);
+	return MaxPlayers;
+}
 
 ALab_GameMode::ALab_GameMode()
 {
@@ -33,22 +41,22 @@ void ALab_GameMode::PostLogin(APlayerController* NewPlayer)
 		GS->SetConnectedPlayerCount(ConnectedPlayerCount);
 	}
 
-	if (ConnectedPlayerCount < MaxPlayers)
+	const int32 N = GetSessionPlayerCount();
+
+	if (ConnectedPlayerCount < N)
 	{
-		// Spawn as survivor at the next available survivor spawn point
 		SpawnAndPossess(NewPlayer, SurvivorPawnClass,
 		                FindSpawnTransform(SurvivorSpawnTag, ConnectedPlayerCount - 1),
 		                EPlayerRole::Survivor);
 	}
-	else if (ConnectedPlayerCount == MaxPlayers)
+	else if (ConnectedPlayerCount == N)
 	{
-		// Last player to join is the first monster; kick off the ready-up phase
 		SpawnAndPossess(NewPlayer, MonsterPawnClass,
 		                FindSpawnTransform(MonsterSpawnTag, 0), EPlayerRole::Monster);
 
 		if (ALab_GameState* GS = GetGameState<ALab_GameState>())
 		{
-			GS->TotalRounds = MaxPlayers;
+			GS->TotalRounds = N;
 			GS->ResetForNewRound(1);
 			GS->SetGamePhase(EGamePhase::WaitingToStart);
 		}
@@ -56,8 +64,8 @@ void ALab_GameMode::PostLogin(APlayerController* NewPlayer)
 	else
 	{
 		UE_LOG(LogGameMode, Warning,
-		       TEXT("ALab_GameMode: Player %d connected but MaxPlayers is %d — no pawn spawned."),
-		       ConnectedPlayerCount, MaxPlayers);
+		       TEXT("ALab_GameMode: Player %d connected but session is for %d — no pawn spawned."),
+		       ConnectedPlayerCount, N);
 	}
 }
 
@@ -161,7 +169,7 @@ void ALab_GameMode::EvaluateWinCondition()
 	ALab_GameState* GS = GetGameState<ALab_GameState>();
 	if (!GS || GS->GamePhase != EGamePhase::InProgress) return;
 
-	if (CaughtSurvivorCount >= MaxPlayers - 1)
+	if (CaughtSurvivorCount >= GetSessionPlayerCount() - 1)
 	{
 		FinishCurrentRound();
 	}
@@ -183,9 +191,10 @@ void ALab_GameMode::FinishCurrentRound()
 	FString MonsterName;
 	float   ElapsedTime = GS->RoundElapsedTime;
 
-	if (CurrentRoundIdx < MaxPlayers && CurrentRoundIdx < AllPlayers.Num())
+	const int32 N = GetSessionPlayerCount();
+	if (CurrentRoundIdx < N && CurrentRoundIdx < AllPlayers.Num())
 	{
-		int32 MonsterIdx = (MaxPlayers - 1 + CurrentRoundIdx) % MaxPlayers;
+		int32 MonsterIdx = (N - 1 + CurrentRoundIdx) % N;
 		if (MonsterIdx < AllPlayers.Num() && AllPlayers[MonsterIdx])
 		{
 			if (ALab_PlayerState* PS = AllPlayers[MonsterIdx]->GetPlayerState<ALab_PlayerState>())
@@ -208,7 +217,7 @@ void ALab_GameMode::OnRoundTransitionComplete()
 {
 	++CurrentRoundIdx;
 
-	if (CurrentRoundIdx >= MaxPlayers)
+	if (CurrentRoundIdx >= GetSessionPlayerCount())
 	{
 		// All players have had a turn as monster — show the leaderboard.
 		OnAllRoundsComplete();
@@ -234,7 +243,8 @@ void ALab_GameMode::OnRoundTransitionComplete()
 		}
 	}
 
-	RespawnAllPlayers((MaxPlayers - 1 + CurrentRoundIdx) % MaxPlayers);
+	const int32 N2 = GetSessionPlayerCount();
+	RespawnAllPlayers((N2 - 1 + CurrentRoundIdx) % N2);
 
 	if (ALab_GameState* GS = GetGameState<ALab_GameState>())
 	{

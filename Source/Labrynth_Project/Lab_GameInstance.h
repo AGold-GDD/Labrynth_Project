@@ -112,6 +112,10 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Player")
 	FString GetLocalUsername() const;
 
+	// How many players the host chose for this session (3–6). Set by HostGame.
+	UPROPERTY(BlueprintReadOnly, Category = "Multiplayer")
+	int32 SessionPlayerCount = 3;
+
 private:
 	IOnlineSessionPtr SessionInterface;
 	FString PendingTravelMap;

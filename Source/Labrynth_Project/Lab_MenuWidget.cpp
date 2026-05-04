@@ -45,6 +45,13 @@ TSharedRef<SWidget> ULab_MenuWidget::RebuildWidget()
 		SelectedHost = HostOptions[0];
 	}
 
+	if (PlayerCountOptions.IsEmpty())
+	{
+		for (int32 i = 3; i <= 6; ++i)
+			PlayerCountOptions.Add(MakeShared<FString>(FString::FromInt(i)));
+		SelectedPlayerCount = PlayerCountOptions[0];
+	}
+
 	TSharedRef<SWidget> Result = SNew(SBox)
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
@@ -111,6 +118,36 @@ TSharedRef<SWidget> ULab_MenuWidget::RebuildWidget()
 					[
 						SNew(STextBlock)
 						.Text_UObject(this, &ULab_MenuWidget::GetSelectedMapText)
+						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 14))
+					]
+				]
+
+				// Player count label
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.f, 0.f, 0.f, 4.f)
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(TEXT("Players")))
+					.Font(FCoreStyle::GetDefaultFontStyle("Regular", 12))
+				]
+
+				// Player count dropdown (3–6)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.f, 0.f, 0.f, 16.f)
+				[
+					SNew(SComboBox<TSharedPtr<FString>>)
+					.OptionsSource(&PlayerCountOptions)
+					.OnSelectionChanged_Lambda([this](TSharedPtr<FString> Item, ESelectInfo::Type)
+					{
+						if (Item.IsValid()) SelectedPlayerCount = Item;
+					})
+					.OnGenerateWidget_UObject(this, &ULab_MenuWidget::MakePlayerCountWidget)
+					.InitiallySelectedItem(SelectedPlayerCount)
+					[
+						SNew(STextBlock)
+						.Text_UObject(this, &ULab_MenuWidget::GetSelectedPlayerCountText)
 						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 14))
 					]
 				]
@@ -230,6 +267,18 @@ FText ULab_MenuWidget::GetSelectedHostText() const
 	return FText::FromString(SelectedHost.IsValid() ? *SelectedHost : TEXT(""));
 }
 
+TSharedRef<SWidget> ULab_MenuWidget::MakePlayerCountWidget(TSharedPtr<FString> Item) const
+{
+	return SNew(STextBlock)
+		.Text(FText::FromString(Item.IsValid() ? *Item : TEXT("")))
+		.Font(FCoreStyle::GetDefaultFontStyle("Regular", 14));
+}
+
+FText ULab_MenuWidget::GetSelectedPlayerCountText() const
+{
+	return FText::FromString(SelectedPlayerCount.IsValid() ? *SelectedPlayerCount : TEXT("3"));
+}
+
 void ULab_MenuWidget::SaveUsername() const
 {
 	if (!UsernameInputBox.IsValid()) return;
@@ -266,9 +315,12 @@ FReply ULab_MenuWidget::OnHostClicked()
 
 	if (MapPath.IsEmpty()) return FReply::Handled();
 
+	const int32 PlayerCount = SelectedPlayerCount.IsValid()
+		? FMath::Clamp(FCString::Atoi(**SelectedPlayerCount), 3, 6) : 3;
+
 	SaveUsername();
 	RemoveFromParent();
-	GI->HostGame(MapPath, 3);
+	GI->HostGame(MapPath, PlayerCount);
 
 	return FReply::Handled();
 }

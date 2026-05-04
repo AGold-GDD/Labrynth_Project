@@ -44,6 +44,7 @@ void ULab_GameInstance::Shutdown()
 
 void ULab_GameInstance::HostGame(const FString& TravelMapPath, int32 MaxPlayers)
 {
+	SessionPlayerCount = FMath::Clamp(MaxPlayers, 3, 6);
 	PendingTravelMap = TravelMapPath;
 
 	// If no session interface is available (e.g. NULL subsystem not fully initialized),

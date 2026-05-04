@@ -34,6 +34,11 @@ private:
 	TArray<TSharedPtr<FString>> HostOptions;
 	TSharedPtr<FString> SelectedHost;
 
+	TArray<TSharedPtr<FString>> PlayerCountOptions;
+	TSharedPtr<FString> SelectedPlayerCount;
+	FText GetSelectedPlayerCountText() const;
+	TSharedRef<SWidget> MakePlayerCountWidget(TSharedPtr<FString> Item) const;
+
 	FReply OnHostClicked();
 	FReply OnJoinClicked();
 

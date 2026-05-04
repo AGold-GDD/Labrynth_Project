@@ -68,8 +68,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game|Setup")
 	FName MonsterSpawnTag = TEXT("MonsterSpawn");
 
-	// How many players must connect before the game starts (survivors = MaxPlayers-1, monster = 1).
-	// Set this in BP_Lab_GameMode to match the lobby player count.
+	// Fallback player count used only if GameInstance doesn't have a SessionPlayerCount
+	// (e.g. launching directly into the game map in PIE without going through the lobby).
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game|Setup")
 	int32 MaxPlayers = 3;
 
@@ -133,4 +133,7 @@ private:
 	                     const FTransform& SpawnTransform, EPlayerRole AssignedRole);
 
 	void EvaluateWinCondition();
+
+	// Reads SessionPlayerCount from GameInstance (clamped 3–6), falls back to MaxPlayers.
+	int32 GetSessionPlayerCount() const;
 };
