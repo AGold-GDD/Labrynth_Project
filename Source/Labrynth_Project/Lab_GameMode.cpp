@@ -305,24 +305,21 @@ void ALab_GameMode::OnAllRoundsComplete_Implementation()
 
 FTransform ALab_GameMode::FindSpawnTransform(FName Tag, int32 Index) const
 {
-	int32 Found = 0;
+	TArray<FTransform> Transforms;
 	for (TActorIterator<AActor> It(GetWorld()); It; ++It)
 	{
 		if (It->ActorHasTag(Tag))
-		{
-			if (Found == Index)
-			{
-				return It->GetActorTransform();
-			}
-			++Found;
-		}
+			Transforms.Add(It->GetActorTransform());
 	}
 
-	UE_LOG(LogGameMode, Warning,
-	       TEXT("ALab_GameMode: No actor with tag '%s' at index %d found in the level."),
-	       *Tag.ToString(), Index);
+	if (Transforms.IsEmpty())
+	{
+		UE_LOG(LogGameMode, Warning,
+		       TEXT("ALab_GameMode: No actors with tag '%s' found in the level."), *Tag.ToString());
+		return FTransform::Identity;
+	}
 
-	return FTransform::Identity;
+	return Transforms[Index % Transforms.Num()];
 }
 
 void ALab_GameMode::SpawnAndPossess(APlayerController* PC, TSubclassOf<APawn> PawnClass,
