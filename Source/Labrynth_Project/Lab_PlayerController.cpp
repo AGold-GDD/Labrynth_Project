@@ -32,6 +32,14 @@ void ALab_PlayerController::SetupInputComponent()
 	}
 }
 
+void ALab_PlayerController::ClientRestart_Implementation(APawn* NewPawn)
+{
+	Super::ClientRestart_Implementation(NewPawn);
+
+	if (IsLocalController())
+		TryBindGameState();
+}
+
 void ALab_PlayerController::TryBindGameState()
 {
 	if (ALab_GameState* GS = GetWorld()->GetGameState<ALab_GameState>())

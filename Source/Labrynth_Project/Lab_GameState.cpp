@@ -28,6 +28,7 @@ void ALab_GameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(ALab_GameState, CaughtSurvivorCount);
 	DOREPLIFETIME(ALab_GameState, RoundElapsedTime);
 	DOREPLIFETIME(ALab_GameState, CurrentRound);
+	DOREPLIFETIME(ALab_GameState, TotalRounds);
 	DOREPLIFETIME(ALab_GameState, RoundResults);
 	DOREPLIFETIME(ALab_GameState, ReadyPlayerCount);
 }
