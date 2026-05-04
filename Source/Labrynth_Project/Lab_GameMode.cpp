@@ -74,6 +74,8 @@ void ALab_GameMode::Logout(AController* Exiting)
 	Super::Logout(Exiting);
 	--ConnectedPlayerCount;
 
+	AllPlayers.Remove(Cast<APlayerController>(Exiting));
+
 	if (ALab_GameState* GS = GetGameState<ALab_GameState>())
 	{
 		if (GS->GamePhase == EGamePhase::InProgress)
@@ -182,7 +184,7 @@ void ALab_GameMode::EvaluateWinCondition()
 void ALab_GameMode::FinishCurrentRound()
 {
 	ALab_GameState* GS = GetGameState<ALab_GameState>();
-	if (!GS) return;
+	if (!GS || GS->GamePhase != EGamePhase::InProgress) return;
 
 	GS->PauseRoundTimer();
 	GS->SetGamePhase(EGamePhase::RoundEnding);
