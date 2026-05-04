@@ -25,6 +25,7 @@ class LABRYNTH_PROJECT_API ALab_PlayerController : public APlayerController
 public:
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
+	virtual void ReceivedGameState() override;
 
 	// Switch input to UI-only mode: shows the cursor, enables widget clicks,
 	// disables WASD/look input. Call this when showing a menu or pause screen.

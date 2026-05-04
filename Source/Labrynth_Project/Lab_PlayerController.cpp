@@ -37,6 +37,20 @@ void ALab_PlayerController::SetupInputComponent()
 	}
 }
 
+void ALab_PlayerController::ReceivedGameState()
+{
+	Super::ReceivedGameState();
+
+	if (!IsLocalController()) return;
+
+	if (ALab_GameState* GS = GetWorld()->GetGameState<ALab_GameState>())
+	{
+		if (!GS->OnGamePhaseChanged.IsAlreadyBound(this, &ALab_PlayerController::HandlePhaseChanged))
+			GS->OnGamePhaseChanged.AddDynamic(this, &ALab_PlayerController::HandlePhaseChanged);
+		HandlePhaseChanged(GS->GamePhase);
+	}
+}
+
 void ALab_PlayerController::HandlePhaseChanged(EGamePhase NewPhase)
 {
 	const bool bLocked = (NewPhase != EGamePhase::InProgress);
