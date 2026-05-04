@@ -17,12 +17,7 @@ void ALab_PlayerController::BeginPlay()
 		Username = GI->GetLocalUsername();
 	Server_SetDisplayName(Username.IsEmpty() ? TEXT("Player") : Username);
 
-	// Lock movement immediately; it unlocks when InProgress begins
-	if (ALab_GameState* GS = GetWorld()->GetGameState<ALab_GameState>())
-	{
-		GS->OnGamePhaseChanged.AddDynamic(this, &ALab_PlayerController::HandlePhaseChanged);
-		HandlePhaseChanged(GS->GamePhase);
-	}
+	TryBindGameState();
 }
 
 void ALab_PlayerController::SetupInputComponent()
@@ -37,17 +32,18 @@ void ALab_PlayerController::SetupInputComponent()
 	}
 }
 
-void ALab_PlayerController::ReceivedGameState()
+void ALab_PlayerController::TryBindGameState()
 {
-	Super::ReceivedGameState();
-
-	if (!IsLocalController()) return;
-
 	if (ALab_GameState* GS = GetWorld()->GetGameState<ALab_GameState>())
 	{
 		if (!GS->OnGamePhaseChanged.IsAlreadyBound(this, &ALab_PlayerController::HandlePhaseChanged))
 			GS->OnGamePhaseChanged.AddDynamic(this, &ALab_PlayerController::HandlePhaseChanged);
 		HandlePhaseChanged(GS->GamePhase);
+	}
+	else
+	{
+		GetWorldTimerManager().SetTimer(GameStateRetryTimer, this,
+			&ALab_PlayerController::TryBindGameState, 0.1f, false);
 	}
 }
 
