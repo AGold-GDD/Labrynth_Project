@@ -58,9 +58,14 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Game|Timer")
 	float RoundElapsedTime = 0.f;
 
-	// Which round we are currently on (1-indexed, max 3).
+	// Which round we are currently on (1-indexed).
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Game|Rounds")
 	int32 CurrentRound = 1;
+
+	// Total number of rounds this session (equals the number of players).
+	// Set by the GameMode once the final player count is known.
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Game|Rounds")
+	int32 TotalRounds = 3;
 
 	// Leaderboard entries, one per completed round. Populated server-side as rounds finish.
 	// Broadcast via OnRoundResultsUpdated when new results arrive on clients.

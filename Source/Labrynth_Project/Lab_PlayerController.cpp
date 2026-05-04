@@ -49,6 +49,7 @@ void ALab_PlayerController::HandlePhaseChanged(EGamePhase NewPhase)
 	{
 		ResetIgnoreMoveInput();
 		ResetIgnoreLookInput(); // Must reset the counter fully — SetIgnoreLookInput(false) only decrements by 1
+		EnableGameInputMode();  // Re-capture the mouse; UIOnly input mode (set during lobby) blocks mouse delta
 	}
 }
 
