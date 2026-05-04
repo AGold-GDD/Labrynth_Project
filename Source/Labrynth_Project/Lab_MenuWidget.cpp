@@ -10,34 +10,42 @@
 
 TSharedRef<SWidget> ULab_MenuWidget::RebuildWidget()
 {
-	// Populate map options from MapPool
-	MapOptions.Empty();
-	if (ULab_GameInstance* GI = GetGameInstance<ULab_GameInstance>())
-	{
-		for (const FString& Path : GI->MapPool)
-		{
-			FString Name = Path;
-			int32 SlashIdx;
-			if (Path.FindLastChar(TEXT('/'), SlashIdx))
-				Name = Path.RightChop(SlashIdx + 1);
-			MapOptions.Add(MakeShared<FString>(Name));
-		}
-	}
+	// Cache username so it survives a Slate-triggered rebuild
+	FString CachedUsername;
+	if (UsernameInputBox.IsValid())
+		CachedUsername = UsernameInputBox->GetText().ToString();
+
+	// Only populate once — don't reset the user's selection on re-entry
 	if (MapOptions.IsEmpty())
-		MapOptions.Add(MakeShared<FString>(TEXT("(no maps in pool)")));
-	SelectedMap = MapOptions[0];
-
-	// Populate known hosts — first entry is the manual-type placeholder
-	HostOptions.Empty();
-	HostOptions.Add(MakeShared<FString>(TEXT("— type IP below —")));
-	if (ULab_GameInstance* GI = GetGameInstance<ULab_GameInstance>())
 	{
-		for (const FKnownHost& Host : GI->KnownHosts)
-			HostOptions.Add(MakeShared<FString>(FString::Printf(TEXT("%s  %s"), *Host.Name, *Host.IP)));
+		if (ULab_GameInstance* GI = GetGameInstance<ULab_GameInstance>())
+		{
+			for (const FString& Path : GI->MapPool)
+			{
+				FString Name = Path;
+				int32 SlashIdx;
+				if (Path.FindLastChar(TEXT('/'), SlashIdx))
+					Name = Path.RightChop(SlashIdx + 1);
+				MapOptions.Add(MakeShared<FString>(Name));
+			}
+		}
+		if (MapOptions.IsEmpty())
+			MapOptions.Add(MakeShared<FString>(TEXT("(no maps in pool)")));
+		SelectedMap = MapOptions[0];
 	}
-	SelectedHost = HostOptions[0];
 
-	return SNew(SBox)
+	if (HostOptions.IsEmpty())
+	{
+		HostOptions.Add(MakeShared<FString>(TEXT("— type IP below —")));
+		if (ULab_GameInstance* GI = GetGameInstance<ULab_GameInstance>())
+		{
+			for (const FKnownHost& Host : GI->KnownHosts)
+				HostOptions.Add(MakeShared<FString>(FString::Printf(TEXT("%s  %s"), *Host.Name, *Host.IP)));
+		}
+		SelectedHost = HostOptions[0];
+	}
+
+	TSharedRef<SWidget> Result = SNew(SBox)
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		[
@@ -191,6 +199,11 @@ TSharedRef<SWidget> ULab_MenuWidget::RebuildWidget()
 				]
 			]
 		];
+
+	if (!CachedUsername.IsEmpty() && UsernameInputBox.IsValid())
+		UsernameInputBox->SetText(FText::FromString(CachedUsername));
+
+	return Result;
 }
 
 TSharedRef<SWidget> ULab_MenuWidget::MakeMapOptionWidget(TSharedPtr<FString> Item) const
